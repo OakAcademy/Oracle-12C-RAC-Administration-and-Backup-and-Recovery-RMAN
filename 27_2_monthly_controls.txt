@@ -1,0 +1,81 @@
+
+1.Check the database size & compare it previous size to find growth speed of the database
+
+--Check the database size physical consume on disk.
+SQL> select sum(bytes)/1024/1024 size_in_mb from dba_data_files;
+Result: 
+
+--Check the total space used by data.
+SQL> select sum(bytes)/1024/1024 size_in_mb from dba_segments;
+Result: 
+
+2.Check unused Indexes
+
+SQL> select * from dba_index_usage;
+
+
+3.Check the tables having FK but there is no Index
+
+SQL> SELECT t.table_name,
+       c.constraint_name,
+       c.table_name table2,
+       acc.column_name
+FROM   dba_constraints t,
+       dba_constraints c,
+       dba_cons_columns acc
+WHERE  c.r_constraint_name = t.constraint_name
+AND    c.table_name        = acc.table_name
+AND    c.constraint_name   = acc.constraint_name
+--AND    c.owner = 'UTEST'
+AND    NOT EXISTS (SELECT '1' 
+                   FROM  dba_ind_columns aid
+                   WHERE aid.table_name  = acc.table_name
+                   AND   aid.column_name = acc.column_name)
+ORDER BY c.table_name;
+
+
+4.Check invalid objects of the database
+
+SQL> SELECT owner, object_type, object_name
+FROM dba_objects
+WHERE status = 'INVALID';
+
+
+
+5.Check open cursor not reaching to the max limit
+
+SQL> SELECT  max(a.value) as highest_open_cur, 
+	p.value as max_open_cur 
+FROM v$sesstat a,
+     v$statname b, 
+     v$parameter p 
+WHERE  a.statistic# = b.statistic#  
+and b.name = 'opened cursors current' 
+and p.name= 'open_cursors' 
+group by p.value;
+
+
+
+6.Check I/O of each data file
+
+SQL> COLUMN "File Name" FORMAT A50
+ 
+SQL> SELECT Substr(d.name,1,50) "File Name",
+       f.phyblkrd "Blocks Read",
+       f.phyblkwrt "Blocks Writen",
+       f.phyblkrd + f.phyblkwrt "Total I/O"
+FROM   v$filestat f,
+       v$datafile d
+WHERE  d.file# = f.file#
+ORDER BY f.phyblkrd + f.phyblkwrt DESC;
+
+
+7.Check the size of tables & check weather it need to partition or not
+
+SQL> select segment_name,sum(bytes)/1024/1024 MB
+from dba_segments
+where segment_type='TABLE' --and owner='UTEST'
+group by segment_name
+order by 2 desc;
+
+

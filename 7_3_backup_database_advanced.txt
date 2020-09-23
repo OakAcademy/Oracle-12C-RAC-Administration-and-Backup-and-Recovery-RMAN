@@ -1,0 +1,301 @@
+############################################
+--if it is not running already then start listener
+$ lsnrctl start
+
+--if it is not started already, startup database
+$ sqlplus / as sysdba
+
+SQL> startup
+############################################
+
+##################
+--If you get an error about disk space run the commands below. We will learn details in further lectures.
+RMAN> CROSSCHECK BACKUP;
+
+RMAN> DELETE OBSOLETE;
+##################
+
+--Making Database Backups for Long-Term Storage
+
+$ rman target sys/oracle@primary catalog rcatown/rcatown@rcatpdb
+
+RMAN> SHOW RETENTION POLICY;
+
+--Recovery Window
+RMAN> CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF 2 DAYS;
+
+--Backup Redundancy
+RMAN> CONFIGURE RETENTION POLICY TO REDUNDANCY 2;
+
+RMAN> BACKUP DATABASE KEEP FOREVER;
+
+RMAN> BACKUP DATABASE KEEP FOREVER
+  FORMAT '/home/oracle/backups/backup_permanent_%U';
+
+RMAN> BACKUP DATABASE KEEP UNTIL TIME 'SYSDATE+7'
+  FORMAT '/home/oracle/backups/backup_perm_week_%U';
+
+RMAN> CONFIGURE RETENTION POLICY CLEAR;
+
+RMAN> SHOW RETENTION POLICY;
+
+--to create permanent backup
+RMAN> RUN
+{
+  ALLOCATE CHANNEL c1 DEVICE TYPE DISK FORMAT '/home/oracle/backups/backup_permanent_%U';
+  BACKUP DATABASE
+    TAG permanent
+    KEEP FOREVER
+    RESTORE POINT rp_permanent;
+}
+
+--to keep the backup for 365 days.
+RMAN> RUN
+{
+  ALLOCATE CHANNEL c1 DEVICE TYPE DISK FORMAT '/home/oracle/backups/backup_year_%U';
+  BACKUP DATABASE
+    TAG keep_one_year
+    KEEP UNTIL TIME 'SYSDATE+365'
+    RESTORE POINT rp_year;
+}
+
+--to create one day backup
+RMAN> BACKUP DATABASE
+  FORMAT '/home/oracle/backups/before_patch_%U' 
+  TAG before_patch 
+  KEEP UNTIL TIME 'SYSDATE+1' 
+  RESTORE POINT rp_before_patch;
+
+
+--Backing Up RMAN Backups
+
+--Back up a data file
+SQL> sqlplus / as sysdba
+
+SQL> col name format a50
+SQL> select df.file#,df.name
+from v$datafile df, v$tablespace ts 
+where df.ts#=ts.ts# and ts.name='TBS_DATA';
+
+RMAN> BACKUP AS BACKUPSET DATAFILE 19;
+
+--list backup of datafile
+RMAN> LIST BACKUP OF DATAFILE 19 SUMMARY;
+
+--back up the backup set
+RMAN> BACKUP BACKUPSET %key%;
+
+--list backup of datafile
+RMAN> LIST BACKUP OF DATAFILE 19 SUMMARY;
+
+--generate a report to see the effect of these copies under a redundancy-based backup retention policy
+RMAN> REPORT OBSOLETE REDUNDANCY 1;
+
+--generate a report to see the effect of these copies under a recovery window-based backup retention policy
+RMAN> REPORT OBSOLETE RECOVERY WINDOW OF 1 DAYS;
+
+#######################################
+--to back up backup sets from disk to tape
+
+RMAN> SHOW DEVICE TYPE;
+
+RMAN> CONFIGURE DEFAULT DEVICE TYPE TO sbt;
+
+--If you are backing up a subset of available backup sets, then obtain their primary keys.
+RMAN> LIST BACKUPSET SUMMARY;
+
+--list details about backup set 3
+RMAN> LIST BACKUPSET 3;
+
+--back up all disk backup sets to tape and then delete the input disk backups
+RMAN> BACKUP BACKUPSET ALL
+  DELETE INPUT;
+
+--back up only the backup sets with the primary key 1 and 2 to tape and then delete the input disk backups
+RMAN> BACKUP BACKUPSET 1,2
+  DELETE INPUT;
+
+--list backup sets and pieces 
+RMAN> LIST BACKUPSET SUMMARY;
+
+
+--to back up image copies from disk to tape
+
+--back up data file copies that have the tag DBCopy
+RMAN> BACKUP DATAFILECOPY FROM TAG DBCopy;
+
+--back up the latest image copies of a database to tape and delete the input disk backups
+RMAN> BACKUP DEVICE TYPE sbt
+  COPY OF DATABASE 
+  DELETE INPUT;
+
+--backing up backup sets to tape immediately after backing up to disk completes 
+RMAN> BACKUP DEVICE TYPE DISK AS BACKUPSET 
+  DATABASE PLUS ARCHIVELOG; 
+BACKUP 
+  DEVICE TYPE sbt 
+  BACKUPSET ALL;
+#######################################
+
+--Specifying File Names
+SQL> sqlplus / as sysdba
+
+SQL> col name format a50
+SQL> select df.file#,df.name
+from v$datafile df, v$tablespace ts 
+where df.ts#=ts.ts# and ts.name='TBS_INDX';
+
+RMAN> BACKUP AS COPY 
+  DB_FILE_NAME_CONVERT ('/u01/app/oracle/oradata/%file_name%',
+                        '/home/oracle/backups/%new_file_name%')
+  TABLESPACE pdb1:tbs_indx;
+
+$ cd /home/oracle/backups
+
+$ ls -ltr
+
+
+--Managing Space Allocation
+RMAN> BACKUP 
+  BACKUPSET COMPLETED BEFORE 'SYSDATE-7' 
+  DELETE INPUT;
+
+
+--Limiting the Size of RMAN Backup Sets
+RMAN> BACKUP DEVICE TYPE DISK
+  MAXSETSIZE 10M
+  ARCHIVELOG ALL;
+
+
+--Dividing the Backup of a Large Data File into Sections
+RMAN> BACKUP
+  TAG 'LIMITED_SIZE'
+  SECTION SIZE 100M
+  PLUGGABLE DATABASE pdb1;
+
+
+--Using Backup Optimization to Skip Files
+
+--Configuring Backup Optimization
+RMAN> CONFIGURE BACKUP OPTIMIZATION ON;
+RMAN> CONFIGURE RETENTION POLICY TO RECOVERY WINDOW OF 2 DAYS;
+
+--Skipping Offline, Read-Only, and Inaccessible Files
+$ sqlplus sys/oracle@pdb1 as sysdba
+
+SQL> col name format a50
+SQL> select df.file#,df.name
+from v$datafile df, v$tablespace ts 
+where df.ts#=ts.ts# and ts.name='TBS_DATA';
+
+--take a datafile to offline
+SQL> ALTER DATABASE DATAFILE 
+  '&file_name&' 
+  OFFLINE;
+
+RMAN> BACKUP DATABASE
+  SKIP INACCESSIBLE
+  SKIP READONLY
+  SKIP OFFLINE;
+
+SQL> ALTER DATABASE DATAFILE 
+  '&file_name&'  
+  ONLINE;
+
+--if file needs recovery
+RMAN> RECOVER DATAFILE 20;
+
+
+--Restarting RMAN Backups
+
+--to only back up files that were not backed up after a specified date
+RMAN> BACKUP 
+  NOT BACKED UP SINCE TIME 'SYSDATE-14'
+  DATABASE PLUS ARCHIVELOG;
+
+
+--Duplexing Backup Sets
+
+--to make two copies of each backup set in the default DISK location
+RMAN> BACKUP AS BACKUPSET 
+  DEVICE TYPE DISK 
+  COPIES 2 
+  DATAFILE 20;
+
+--duplex backup sets with format clause
+RMAN> BACKUP AS BACKUPSET
+  TAG 'DUPLEX_BACKUP'
+  COPIES 2 
+  FORMAT '/u01/app/oracle/fast_recovery_area/orcl/ORCL/backupset/duplex_backup_%U', 
+         '/home/oracle/backups/duplex_backup_%U'
+  DATAFILE 20;
+
+--to see a listing of backup sets and pieces
+RMAN> LIST BACKUP OF DATAFILE 20 SUMMARY;
+
+
+--Encrypting RMAN Backups
+
+--to make password-mode encrypted backups
+--to set the encryption password for all tablespaces in the backup and specify ONLY to indicate that the encryption is password-only
+RMAN> SET ENCRYPTION IDENTIFIED BY mypassword ONLY ON FOR ALL TABLESPACES;
+
+RMAN> BACKUP DATABASE PLUS ARCHIVELOG;
+
+--making transparent-mode encrypted backups
+--If you have configured transparent encryption, then no additional commands are required to create encrypted backups.
+RMAN> SHOW ENCRYPTION FOR DATABASE;
+
+RMAN> CONFIGURE ENCRYPTION FOR DATABASE ON;
+
+--Back up the database
+RMAN> BACKUP DATABASE PLUS ARCHIVELOG;
+
+RMAN> CONFIGURE ENCRYPTION FOR DATABASE OFF;
+
+--to make dual-mode encrypted backups
+--to set the encryption password for all tablespaces in the backup and omits ONLY to indicate dual-mode encryption
+RMAN> SET ENCRYPTION IDENTIFIED BY mypassword ON FOR ALL TABLESPACES;
+
+RMAN> BACKUP DATABASE PLUS ARCHIVELOG;
+
+
+--solution for "ORA-28365: wallet is not open"
+
+SQL> SELECT wrl_parameter, wallet_type, status
+    FROM v$encryption_wallet;
+
+--open sqlnet.ora file and add entry below to the file.
+$ cd $ORACLE_HOME/network/admin
+
+$ vi sqlnet.ora
+
+ENCRYPTION_WALLET_LOCATION =
+  (SOURCE =(METHOD = FILE)(METHOD_DATA =
+    (DIRECTORY = /u01/app/oracle/admin/ORCL/encryption_keystore/)))
+
+--create directory for encryption keystore
+$ mkdir -p /u01/app/oracle/admin/ORCL/encryption_keystore
+
+--create keystore
+$ sqlplus / as sysdba
+
+SQL> ADMINISTER KEY MANAGEMENT CREATE KEYSTORE '/u01/app/oracle/admin/ORCL/encryption_keystore/' IDENTIFIED BY mypassword;
+
+--check whether the keystore is created
+$ cd /u01/app/oracle/admin/ORCL/encryption_keystore
+$ ls -ltr
+
+--open the wallet
+SQL> ADMINISTER KEY MANAGEMENT SET KEYSTORE OPEN IDENTIFIED BY mypassword CONTAINER=ALL;
+
+SQL> SELECT wrl_parameter, wallet_type, status
+    FROM v$encryption_wallet;
+
+--set master key
+SQL> ADMINISTER KEY MANAGEMENT SET KEY IDENTIFIED BY mypassword WITH BACKUP CONTAINER=ALL;
+
+--close the wallet
+SQL> ADMINISTER KEY MANAGEMENT SET KEYSTORE CLOSE IDENTIFIED BY mypassword CONTAINER=ALL;
+
+

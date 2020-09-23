@@ -1,0 +1,344 @@
+############################################
+--if it is not running already then start listener
+$ lsnrctl start
+
+--if it is not started already, startup database
+$ sqlplus / as sysdba
+
+SQL> startup
+############################################
+
+
+--Backing Up a Database in NOARCHIVELOG Mode
+
+--Control archivelog mod
+$ sqlplus / as sysdba
+
+SQL> archive log list
+
+SQL> select log_mode from v$database;
+
+--close archivelog mode
+SQL> shutdown immediate;
+
+SQL> startup mount;
+
+SQL> alter database flashback off;
+
+SQL> col name format a30
+SQL> select name, guarantee_flashback_database, pdb_restore_point, clean_pdb_restore_point, pdb_incarnation#, storage_size from v$restore_point;
+
+SQL> drop restore point grp_cdb;
+
+SQL> alter database noarchivelog;
+
+SQL> alter database open;
+
+SQL> archive log list
+
+SQL> select log_mode from v$database;
+
+--start backup with RMAN
+$ rman target /
+
+RMAN> BACKUP DATABASE
+  TAG 'BACKUP_NOARCHIVELOG';
+
+--shut down database before backing up
+SQL> shutdown immediate; 
+
+SQL> startup mount;
+
+--start backup with RMAN
+$ rman target /
+
+RMAN> BACKUP DATABASE
+  TAG 'BACKUP_NOARCHIVELOG';
+
+--open the database. 
+RMAN> ALTER DATABASE OPEN; 
+
+--open archivelog mode
+$ sqlplus / as sysdba
+
+SQL> select open_mode from v$database;
+
+--change log_mode to archive log back
+SQL> shutdown immediate;
+
+SQL> startup mount;
+
+SQL> alter database archivelog;
+
+SQL> alter database flashback on;
+
+SQL> alter database open;
+
+SQL> archive log list
+
+SQL> select log_mode,flashback_on from v$database;
+
+#######################
+--back up without catalog database
+$ rman target /
+
+RMAN> SHOW ALL;
+
+--backup whole database
+RMAN> BACKUP DATABASE;
+RMAN> BACKUP ARCHIVELOG ALL;
+--or
+RMAN> BACKUP DATABASE PLUS ARCHIVELOG;
+#######################
+
+--backup with catalog database
+--connect on primary server
+$ rman target sys/oracle@primary catalog rcatown/rcatown@rcatpdb
+
+RMAN> SHOW ALL;
+
+--connect on rmancat server
+$ rman target sys/oracle@primary catalog rcatown/rcatown@rcatpdb
+
+RMAN> SHOW ALL;
+
+RMAN> BACKUP DATABASE PLUS ARCHIVELOG;
+
+--Specifying the Device Type for an RMAN Backup
+RMAN> SHOW DEVICE TYPE;
+
+RMAN> BACKUP 
+   DEVICE TYPE DISK
+   DATABASE;
+
+####OPTION######
+--if you have tape unite in your system you can arrange sbt as device type
+RMAN> BACKUP 
+   DEVICE TYPE SBT
+   DATABASE;
+
+--to configure tape as default device type
+RMAN> CONFIGURE DEVICE TYPE SBT PARALLELISM 1 BACKUP TYPE TO BACKUPSET;
+################
+
+--Backing Up Archived Redo Logs with RMAN options
+--with sequence range
+SQL> select sequence# from v$archived_log;
+
+RMAN> BACKUP ARCHIVELOG
+  FROM  SEQUENCE 1 
+  UNTIL SEQUENCE 3;
+
+--with time range
+RMAN> BACKUP ARCHIVELOG 
+  FROM TIME  'SYSDATE-30'
+  UNTIL TIME 'SYSDATE-7';
+
+--To back up archived redo logs that need backup
+RMAN> BACKUP ARCHIVELOG ALL NOT BACKED UP 2 TIMES;
+
+--delete archive logs after backup
+$ cd /u01/app/oracle/fast_recovery_area/orcl/ORCL/archivelog
+
+$ ls -ltr
+
+RMAN> BACKUP ARCHIVELOG ALL DELETE INPUT;
+
+RMAN> BACKUP DATABASE PLUS ARCHIVELOG DELETE INPUT;
+
+
+--backup of root container
+RMAN> BACKUP DATABASE ROOT TAG 'ROOT_DB_BACKUP';
+
+
+--backup of pluggable database
+RMAN> BACKUP PLUGGABLE DATABASE pdb1 TAG 'PDB1_BACKUP';
+
+--To back up one PDB while connected to the PDB
+$ rman target sys/oracle@pdb1 catalog rcatown/rcatown@rcatpdb
+
+$ rman target sys/oracle@pdb1
+
+RMAN> BACKUP DATABASE;
+
+
+--backup of tablespace
+--when connected to pdb1
+RMAN> BACKUP TABLESPACE tbs_data;
+
+--when connected to cdb or catalog
+RMAN> BACKUP TABLESPACE pdb1:tbs_data;
+
+--backup of datafile
+SQL> sqlplus / as sysdba
+
+SQL> col name format a30
+
+SQL> select df.file#,df.name
+from v$datafile df, v$tablespace ts 
+where df.ts#=ts.ts# and ts.name='TBS_DATA';
+
+RMAN> BACKUP DATAFILE 19;
+
+
+--Making Image Copies
+RMAN> BACKUP AS COPY
+  DEVICE TYPE DISK 
+  DATABASE
+  TAG full_cold_copy;
+
+--Making Backup Sets
+RMAN> BACKUP AS BACKUPSET 
+  DATAFILE 20  
+  TAG backup_df20;
+
+--Backing up an existing backup copy
+RMAN> BACKUP AS COPY
+  COPY OF DATABASE
+    FROM TAG full_cold_copy
+  TAG new_full_cold_copy;
+
+
+--Specifying a Format for RMAN Backups
+--create a directory for backups 
+$ mkdir /home/oracle/backups
+
+--specifies a location on the file system
+RMAN> BACKUP DATABASE 
+  FORMAT "/home/oracle/backups/backup_%U";  
+
+--check the new directory
+$ cd backups
+$ ls -ltr
+
+##########################
+--To back up a database to multiple disk drives
+--Allocate one DISK channel for each disk drive and specify a format so that the file names are on different disks.
+RMAN> RUN
+{ 
+  ALLOCATE CHANNEL disk1 DEVICE TYPE DISK FORMAT '/disk1/%d_backups/%U';
+  ALLOCATE CHANNEL disk2 DEVICE TYPE DISK FORMAT '/disk2/%d_backups/%U';
+  ALLOCATE CHANNEL disk3 DEVICE TYPE DISK FORMAT '/disk3/%d_backups/%U';
+  BACKUP AS COPY DATABASE; 
+} 
+
+
+--You can configure multiple disk channels so that backups will be distributed to multiple disk drives by default
+RMAN> CONFIGURE DEVICE TYPE DISK PARALLELISM 3;
+RMAN> CONFIGURE DEFAULT DEVICE TYPE TO DISK;
+RMAN> CONFIGURE CHANNEL 1 DEVICE TYPE DISK FORMAT '/disk1/%d_backups/%U';
+RMAN> CONFIGURE CHANNEL 2 DEVICE TYPE DISK FORMAT '/disk2/%d_backups/%U';
+RMAN> CONFIGURE CHANNEL 3 DEVICE TYPE DISK FORMAT '/disk3/%d_backups/%U';
+RMAN> BACKUP AS COPY DATABASE;
+##########################
+
+--Making Compressed Backups
+RMAN> BACKUP 
+  AS COMPRESSED BACKUPSET 
+  DATABASE
+  FORMAT "/home/oracle/backups/backupcmprs_%U";
+
+$ du -h backup*
+
+
+--Backing Up Control Files with RMAN
+
+--manual backup of the control file
+RMAN> SHOW CONTROLFILE AUTOBACKUP;
+
+RMAN> CONFIGURE CONTROLFILE AUTOBACKUP OFF;
+
+RMAN> BACKUP CURRENT CONTROLFILE;
+
+RMAN> BACKUP DEVICE TYPE DISK
+  TABLESPACE pdb1:tbs_indx
+  INCLUDE CURRENT CONTROLFILE;
+
+
+--Backing Up a Control File Copy
+RMAN> BACKUP AS COPY 
+  CURRENT CONTROLFILE 
+  FORMAT '/home/oracle/backups/control01.ctl';
+
+RMAN> CONFIGURE CONTROLFILE AUTOBACKUP ON;
+
+
+--backing up server parameter files with RMAN
+RMAN> BACKUP SPFILE;
+
+RMAN> BACKUP AS COPY 
+  SPFILE
+  FORMAT '/home/oracle/backups/spfile01.pfile';
+
+
+--To make an incremental backup:
+RMAN> BACKUP
+  INCREMENTAL LEVEL 0
+  DATABASE
+  TAG 'INCREMENTAL_FULL';
+
+--To make a differential incremental backup. It only backs up those data blocks changed since the most recent level 1 or level 0 backup.
+RMAN> BACKUP
+  INCREMENTAL LEVEL 1
+  DATABASE
+  TAG 'INCREMENTAL_DIFFERENTIAL';
+
+--To make a cumulative incremental backup, backing up all blocks changed since the most recent level 0 backup.
+RMAN> BACKUP
+  INCREMENTAL LEVEL 1 CUMULATIVE
+  DATABASE;
+  TAG 'INCREMENTAL_CUMULATIVE';
+
+
+--Basic Incremental Update Script
+RMAN> RUN
+{
+  RECOVER COPY OF DATABASE 
+    WITH TAG 'full_copy';
+  BACKUP 
+    INCREMENTAL LEVEL 1
+    FOR RECOVER OF COPY WITH TAG 'full_copy'
+    DATABASE;
+}
+
+
+--To enable block change tracking:
+
+--Ensure that the DB_CREATE_FILE_DEST initialization parameter is set.
+$ sqlplus / as sysdba
+
+--check whether DB_CREATE_FILE_DEST initialization parameter is set
+SQL> show parameter DB_CREATE_FILE_DEST
+
+--If the parameter is not set,  set the parameter
+SQL> ALTER SYSTEM SET 
+  DB_CREATE_FILE_DEST = '/u01/app/oracle/oradata/'
+  SCOPE=BOTH SID='*';
+
+--Enable block change tracking
+SQL> ALTER DATABASE ENABLE BLOCK CHANGE TRACKING;
+
+--To determine whether change tracking is enabled:
+SQL> COL STATUS   FORMAT A8
+COL FILENAME FORMAT A65
+ 
+SQL> SELECT STATUS, FILENAME FROM V$BLOCK_CHANGE_TRACKING;
+
+--To disable block change tracking
+$ sqlplus / as sysdba
+
+SQL> ALTER DATABASE DISABLE BLOCK CHANGE TRACKING;
+
+--To determine whether change tracking is enabled:
+SQL> COL STATUS   FORMAT A8
+COL FILENAME FORMAT A65
+ 
+SQL> SELECT STATUS, FILENAME FROM   V$BLOCK_CHANGE_TRACKING;
+
+--You can also create the change tracking file in a location that you choose yourself
+ALTER DATABASE ENABLE BLOCK CHANGE TRACKING 
+  USING FILE '/home/oracle/backups/rman_change_track.f' REUSE;
+
+$ cd /home/oracle/backups
+$ ls -ltr
+

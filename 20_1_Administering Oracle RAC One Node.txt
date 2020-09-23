@@ -1,0 +1,49 @@
+
+
+--configuration of database as rac
+$ srvctl config database -db racdb
+
+--stop instance racdb2
+$ srvctl stop instance -db racdb -instance racdb2
+
+--remove instance racdb2
+$ srvctl remove instance -db racdb -instance racdb2
+
+--control status of database and see only racdb1 exists
+$ srvctl status database -db racdb
+
+
+--adding pluggable database as a service
+$ srvctl add service -db racdb -pdb pdb1 -service plug -preferred racdb1
+
+
+--convert database to RAC one node
+$ srvctl convert database -db racdb -dbtype RACONENODE -instance racdb1
+
+--configuration of database as rac one node
+$ srvctl config database -db racdb
+
+--control status of database
+$ srvctl status database -d racdb
+
+
+--relocate database to rac2
+$ srvctl relocate database -db racdb -node rac2
+
+
+--convert database RAC one node to RAC
+$ srvctl convert database -db racdb -dbtype RAC
+
+--add instance
+$ srvctl add instance -db racdb -instance racdb1 -node rac1
+
+--configuration of database as rac
+$ srvctl config database -db racdb
+
+--stop and start database to open properly
+$ srvctl stop database -db racdb
+
+$ srvctl start database -db racdb
+
+--control status of database
+$ srvctl status database -d racdb

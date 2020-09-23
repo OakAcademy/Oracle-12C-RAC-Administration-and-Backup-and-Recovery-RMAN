@@ -1,0 +1,201 @@
+
+--set environment to grid
+$ . grid_env
+
+--control environment
+$ echo $ORACLE_HOME
+
+--switch user to root
+$ su root
+
+--start crs and instance
+$ crsctl start crs
+
+--controling if crs and instances are opened
+$ crsctl stat res -t
+
+--exit to oracle user
+
+--set environment to db
+$ . db_env
+
+--control environment
+$ echo $ORACLE_HOME
+
+###########OPTIONAL############
+--open another terminal first
+--to see alert log file on rac1
+$ cd /u01/app/oracle/diag/rdbms/racdb/racdb1/trace
+$ tail -f alert_racdb1.log
+
+--to see alert log file on rac2
+$ cd /u01/app/oracle/diag/rdbms/racdb/racdb2/trace
+$ tail -f alert_racdb2.log
+###############################
+
+--start database
+$ srvctl start database -database racdb 
+
+--status of database
+$ srvctl status database -db racdb
+
+--stop database
+$ srvctl stop database -db racdb
+
+--start database with startoption mount
+$ srvctl start database -d racdb -startoption mount
+
+--open mounted database
+$ srvctl modify database -db racdb -startoption open
+
+--stop database with stopoption
+$ srvctl stop database -db racdb -stopoption immediate
+
+
+--administer managed 
+--start instance
+$ srvctl start instance -db racdb -instance racdb1 
+
+--stop instance
+$ srvctl stop instance -db racdb -instance racdb1
+
+
+--policy managed
+$ srvctl start instance -db racdb -node racdb1 
+
+
+--set environment for grid
+$ . grid_env
+
+--switch user to root
+$ su root
+
+--stop instance and crs on each node
+$ crsctl stop crs 
+
+--if you don't want to start crs automaticly run this before shutdown server
+$ crsctl disable crs
+
+--after need to not start automaticly finishes
+$ crsctl enable crs
+
+--start crs and instance
+$ crsctl start crs
+
+--control status of crs and instances
+$ crsctl stat res -t
+
+--set environment for database
+$ . db_env
+
+$ sqlplus / as sysdba
+
+-- verify instances are running
+SQL> column inst_name format a30
+SQL> SELECT * FROM V$ACTIVE_INSTANCES;
+
+
+--control open_mode of pdb1
+SQL> column name format a15
+SQL> column open_mode format a20
+SQL> select name,open_mode from v$pdbs;
+
+--open pluggable database
+SQL> alter pluggable database pdb1 open;
+
+
+SQL> select name,open_mode from v$pdbs;
+
+
+--adding pluggable database as a service to administer managed container database 
+$ srvctl add service -db racdb -pdb pdb1 -service plug -preferred racdb1
+
+
+--adding pluggable database as a service to policy managed container database 
+$ srvctl add service –db racdb –pdb pdb1 –service plug –serverpool prod
+
+--added service will run only one node of policy managed container database 
+$ srvctl add service –db racdb –pdb pdb1 –service plug –serverpool prod -cardinality singleton
+
+
+--status of service
+$ srvctl status service -d racdb -s plug
+
+--open pdb1 you must start plug service
+$ srvctl start service -db racdb -service plug
+
+--stop the service, plug:
+$ srvctl stop service -db racdb -service plug
+
+The pdb1 remains open until you close the PDB using the SQL command 
+SQL> ALTER PLUGGABLE DATABASE pdb1 CLOSE IMMEDIATE;
+
+--remove service:
+$ srvctl remove service -d racdb -s plug
+
+
+Terminating Sessions On a Specific Cluster Instance
+
+--check if pdb1 is opened, if not open it.
+
+$ sqlplus sys/Oracle123@pdb1 as sysdba
+
+SQL> column name format a15
+SQL> column open_mode format a20
+SQL> select name,open_mode from v$pdbs;
+
+SQL> alter pluggable database pdb1 open;
+
+SQL> create user utest identified by utest;
+
+SQL> grant dba to utest;
+
+SQL> exit
+
+--create session that will be killed:
+
+$ sqlplus utest/utest@pdb1
+
+SQL> create table test_tab (aa number, bb varchar2(10));
+
+SQL> insert into test_tab values(1,'abc');
+
+
+--open new terminal and connect to pdb1 with sqlplus 
+
+$ sqlplus sys/Oracle123@pdb1 as sysdba
+
+--then query session that will be killed:
+SQL> SELECT SID, SERIAL#, INST_ID FROM GV$SESSION WHERE USERNAME='UTEST';
+
+       SID    SERIAL#    INST_ID
+---------- ---------- ----------
+        80          6          2
+
+--finally kill the session 
+SQL> ALTER SYSTEM KILL SESSION '80, 6, @2';
+
+System altered.
+
+
+If you have the ORA-00031 message because some activity must be completed before the session can be terminated 
+then use IMMEDIATE clause to immediately terminate the session without waiting for outstanding activity to complete.
+
+SQL> ALTER SYSTEM KILL SESSION '80, 6, @2' IMMEDIATE;
+ 
+
+
+Setting SPFILE Parameter Values
+
+
+SQL> show parameter open_cursor
+
+SQL> ALTER SYSTEM SET OPEN_CURSORS=500 SID='racdb1' SCOPE=MEMORY;
+
+SQL> show parameter open_cursor
+
+NAME				     TYPE	 VALUE
+------------------------------------ ----------- ------------------------------
+open_cursors			     integer	 500
+
+

@@ -1,0 +1,69 @@
+############################################
+--if it is not running already then start listener
+$ lsnrctl start
+
+--if it is not started already, startup database
+$ sqlplus / as sysdba
+
+SQL> startup
+############################################
+
+
+--to delete a datafile from file system
+$ sqlplus mytest/test_123@pdb1
+
+SQL> begin
+ for i in 1..20
+   loop
+     insert into test_tab1 select * from test_tab1;
+     commit;
+   end loop;
+ end;
+/
+
+SQL> select count(*) from test_tab1;
+
+SQL> col name format a50
+
+SQL> select df.file#,df.name
+from v$datafile df, v$tablespace ts 
+where df.ts#=ts.ts# and ts.name='TBS_DATA';
+
+$ rm &file_name&
+
+$ sqlplus mytest/test_123@pdb1
+
+SQL> ALTER SYSTEM FLUSH BUFFER_CACHE;
+
+SQL> select count(*) from test_tab1;
+
+
+--identifying missing datafile
+$ rman target sys/oracle@primary catalog rcatown/rcatown@rcatpdb
+
+RMAN> LIST FAILURE;
+
+RMAN> VALIDATE DATAFILE 19;
+
+RMAN> REPORT SCHEMA;
+
+
+--Performing Recovery of Datafile
+
+--If the database is open, then take the datafile requiring recovery offline
+SQL> ALTER DATABASE DATAFILE 19 OFFLINE;
+
+########
+--if restoring password-protected encrypted backups, then specify the password
+RMAN> SET DECRYPTION IDENTIFIED BY password;
+########
+
+--Restore and recover the datafile
+RMAN> RESTORE DATAFILE 19;
+
+RMAN> RECOVER DATAFILE 19;
+
+--if recovery is successful, bring the recovered datafile back online.
+SQL> ALTER DATABASE DATAFILE 19 ONLINE;
+
+

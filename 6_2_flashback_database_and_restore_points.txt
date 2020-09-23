@@ -1,0 +1,275 @@
+############################################
+--if it is not running already then start listener
+$ lsnrctl start
+
+--if it is not started already, startup database
+$ sqlplus / as sysdba
+
+SQL> startup
+############################################
+
+--Using Flashback Query
+
+$ sqlplus mytest/test_123@pdb1
+
+SQL> col name format a10
+col surname format a10
+
+SQL> select * from test_tab1;
+
+SQL> update test_tab1 set name='new_name' where id=1;
+
+SQL> commit;
+
+SQL> alter session set nls_date_format='dd.mm.yyyy hh24:mi:ss';
+
+--finding old version of updated value
+SQL> select * from (select name from test_tab1 where id=1) as of timestamp sysdate-1/24;
+
+--alternative
+SQL> select * from (select name from test_tab1 where id=1) 
+as of timestamp to_date(just_before_update_time,dd.mm.yyyy hh24:mi:ss);
+
+SQL> update test_tab1 set name='aaa' where id=1;
+
+SQL> commit;
+
+
+-- Activate Flashback
+
+--Control archivelog mod
+$ sqlplus / as sysdba
+
+SQL> archive log list
+
+SQL> select log_mode from v$database;
+
+--open archivelog mode. it can be done in mount mode
+SQL> shutdown immediate;
+
+SQL> startup mount;
+
+SQL> alter database archivelog;
+
+SQL> alter database open;
+
+--Enable force logging and flashback
+SQL> alter database force logging;
+
+SQL> alter database flashback on;
+
+SQL> select flashback_on from v$database;
+
+SQL> show parameter DB_FLASHBACK_RETENTION_TARGET
+
+#######OPTIONS##########
+
+--set the length of the desired flashback window in minutes(3 days for this command)
+SQL> alter system set DB_FLASHBACK_RETENTION_TARGET=4320 scope=both; 
+
+--You can enable flashback logging for a tablespace
+SQL> alter tablespace tbs_data flashback on;
+
+--You can disable flashback logging for a tablespace
+SQL> alter tablespace tbs_data flashback off;
+
+--Disabling Flashback Database Logging
+SQL> alter database flashback off;
+
+########################
+
+--Flashback Table
+
+$ sqlplus mytest/test_123@pdb1
+
+SQL> drop table test_tab1;
+
+SQL> select object_name, original_name, operation, droptime from user_recyclebin;
+
+SQL> flashback table test_tab1 to before drop;
+
+SQL> col name format a10
+col surname format a10
+
+SQL> select * from test_tab1;
+
+
+--Flashback Database
+
+--connect container database
+$ sqlplus / as sysdba
+
+SQL> select current_scn from v$database;
+
+&current_scn& : 
+
+--connect pdb1 
+$ sqlplus mytest/test_123@pdb1
+
+SQL> drop table test_tab1 purge;
+
+--connect container database
+$ sqlplus / as sysdba
+
+SQL> shutdown immediate;
+
+SQL> startup mount;
+
+SQL> flashback database to scn &current_scn&;
+
+SQL> alter database open resetlogs;
+
+--check the dropped table 
+$ sqlplus mytest/test_123@pdb1
+
+SQL> col name format a10
+col surname format a10
+
+SQL> select * from test_tab1;
+
+--Restore Points
+
+--Creating PDB Restore Points
+$ sqlplus / as sysdba
+
+--display the state of the PDB:
+SQL> select name, open_mode from v$pdbs;
+
+--close the PDB
+SQL> alter pluggable database pdb1 close;
+
+SQL> alter session set container=pdb1;
+
+SQL> show con_name
+
+--create a normal PDB restore point
+SQL> create restore point rp_pdb1;
+
+#######OPTIONS##########
+
+--create a guaranteed PDB restore point
+SQL> create restore point grp_pdb1 guarentee flashback database;
+
+--create a clean PDB restore point. If a clean restore point cannot be created, then an error is returned.
+SQL> create clean restore point crp_pdb1;
+
+########################
+
+--open pluggable database
+SQL> alter pluggable database pdb1 open;
+
+--connect pdb1 with test user
+$ sqlplus mytest/test_123@pdb1
+
+SQL> drop table test_tab1;
+
+--flashback to restore point
+$ sqlplus sys/oracle@pdb1 as sysdba
+
+SQL> alter pluggable database pdb1 close;
+
+SQL> flashback pluggable database to restore point rp_pdb1;
+
+SQL> alter pluggable database pdb1 open resetlogs;
+
+--run with test user
+SQL> conn mytest/test_123@pdb1
+
+SQL> col name format a10
+col surname format a10
+
+SQL> select * from test_tab1;
+
+
+--To create a PDB restore point when connected to the CDB
+
+$ sqlplus / as sysdba
+
+--close PDB1
+SQL> alter pluggable database pdb1 close;
+
+--place the CDB in a mounted state
+SQL> shutdown immediate;
+
+SQL> startup mount;
+
+--check the container you connected to
+SQL> show con_name
+
+--Set the current container to the root, if it is not already
+SQL> alter session set container=CDB$ROOT;
+
+--create a normal PDB restore point
+SQL> create restore point rp_pdb_from_cdb for pluggable database pdb1;
+
+--create a guaranteed PDB restore point
+SQL> create restore point grp_pdb_from_cdb for pluggable database pdb1 guarantee flashback database;
+
+--create a clean PDB restore point (when the PDB is closed and has no pending transactions). If the restore point cannot be created, then an error is displayed.
+SQL> create clean restore point crp_pdb_from_cdb for pluggable database pdb1;
+
+
+--Creating CDB Restore Points
+$ sqlplus / as sysdba
+
+--to create a normal restore point
+SQL> create restore point rp_cdb;
+
+--open the CDB
+SQL> alter database open;
+
+--to create a guaranteed restore point
+SQL> create restore point grp_cdb guarantee flashback database;
+
+
+--connect pdb1 with test user
+$ sqlplus mytest/test_123@pdb1
+
+SQL> drop table test_tab1;
+
+--connect CDB
+$ sqlplus / as sysdba
+
+SQL> shutdown immediate;
+
+SQL> startup mount;
+
+--flashback to restore point
+SQL> flashback database to restore point grp_cdb;
+
+SQL> alter database open resetlogs;
+
+--connect to pdb1 with test user
+$ sqlplus mytest/test_123@pdb1
+
+SQL> col name format a10
+col surname format a10
+
+SQL> select * from test_tab1;
+
+
+--Listing Restore Points Using the LIST Command
+$ rman target /
+
+RMAN> list restore point all;
+
+RMAN> list restore point rp_pdb1;
+
+--displaying Restore Points
+$ sqlplus / as sysdba
+
+SQL> col name format a30
+
+SQL> select name, guarantee_flashback_database, pdb_restore_point, clean_pdb_restore_point, pdb_incarnation#, storage_size from v$restore_point;
+
+
+--drop Restore Points
+
+SQL> drop restore point grp_cdb;
+
+SQL> drop restore point rp_pdb1;
+
+SQL> drop restore point grp_pdb_from_cdb;
+
+SQL> alter session set container=pdb1;
+

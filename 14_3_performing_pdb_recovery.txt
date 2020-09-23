@@ -1,0 +1,76 @@
+############################################
+--if it is not running already then start listener
+$ lsnrctl start
+
+--if it is not started already, startup database
+$ sqlplus / as sysdba
+
+SQL> startup
+############################################
+
+
+--to create failures
+$ rm /u01/app/oracle/oradata/tbs_indx01.dbf
+
+$ vi /u01/app/oracle/oradata/tbs_data02.dbf
+
+corruption test
+
+
+--identifying failures
+$ rman target sys/oracle@primary catalog rcatown/rcatown@rcatpdb
+
+RMAN> LIST FAILURE;
+
+RMAN> VALIDATE PLUGGABLE DATABASE pdb1;
+
+
+--Performing Complete Recovery of PDB with RMAN
+
+--when connected to CDB
+$ sqlplus / as sysdba
+
+--to close the PDB
+SQL> ALTER PLUGGABLE DATABASE pdb1 CLOSE;
+
+--take the missing data file offline, and then close the PDB
+$ sqlplus sys/oracle@pdb1 as sysdba
+
+SQL> ALTER PLUGGABLE DATABASE DATAFILE &file#& OFFLINE;
+
+--Issue the RESTORE PLUGGABLE DATABASE and RECOVER PLUGGABLE DATABASE commands
+RMAN> RESTORE PLUGGABLE DATABASE pdb1;
+
+RMAN> RECOVER PLUGGABLE DATABASE pdb1;
+
+--to make data files online
+SQL> ALTER DATABASE DATAFILE &file#& ONLINE;
+
+--to open the PDB
+SQL> ALTER PLUGGABLE DATABASE pdb1 OPEN;
+
+
+##############################################
+--when connected to PDB itself
+
+$ sqlplus sys/oracle@pdb1 as sysdba
+
+--to close the PDB.
+SQL> ALTER PLUGGABLE DATABASE CLOSE;
+
+--to take missing data file offline and then close the PDB
+SQL> ALTER DATABASE DATAFILE &file#& OFFLINE;
+
+--Issue the RESTORE DATABASE and RECOVER DATABASE commands.
+$ rman target sys/oracle@pdb1
+
+RMAN> RESTORE DATABASE;
+
+RMAN> RECOVER DATABASE;
+
+--to make data files online
+SQL> ALTER DATABASE DATAFILE &file#& ONLINE;
+
+--to open the PDB.
+SQL> ALTER PLUGGABLE DATABASE OPEN;
+##############################################

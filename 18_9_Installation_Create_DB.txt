@@ -1,0 +1,43 @@
+###
+Installation in this document is only for  exercises of this course.
+Do not use this documentation for installation of system that will be used actively.
+###
+
+
+--Create a Database
+
+$ . db_env
+$ dbca
+
+Create a database
+
+Select the "Typical configuration" option. 
+Global database name: racdb 
+Administrator password: Oracle_123
+Check Create as Container database
+Pluggable database name: pdb1  
+
+Check the "Ignore All" checkbox
+
+Finish
+
+Close
+
+
+$ srvctl config database -db racdb
+$ srvctl status database -db racdb
+
+
+$ sqlplus / as sysdba
+SQL> SELECT inst_name FROM v$active_instances;
+
+
+
+
+--edit hostname, oracle_sid on rac2
+$ gedit .bash_profile
+
+$ gedit db_env
+
+
+

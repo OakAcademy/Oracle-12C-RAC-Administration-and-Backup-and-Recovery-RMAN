@@ -1,0 +1,72 @@
+
+--update linux kernel
+
+$ yum update -y
+
+
+--install guest additons
+
+--shutdown vm
+
+--enable shared clipboard
+
+
+--create shared folder
+
+$ su root
+$ cd /media
+$ ls
+
+
+--edit "/etc/hosts" file
+
+10.0.2.15  primary.localdomain  primary
+
+
+--Perform basic prerequisites
+
+$ yum install oracle-database-server-12cR2-preinstall -y
+
+
+--set the password for the "oracle" user.
+
+$ passwd oracle
+
+
+--Set secure Linux to permissive by editing the "/etc/selinux/config" file
+SELINUX=permissive
+
+
+--stop and disable firewall 
+
+$ systemctl stop firewalld
+$ systemctl disable firewalld
+
+
+--create the directories in which the Oracle software will be installed.
+
+$ mkdir -p /u01/app/oracle/product/12.2.0.1/db_1
+$ chown -R oracle:oinstall /u01
+$ chmod -R 775 /u01
+
+
+--exit to oracle user
+--edit .bash_profile file with adding these:
+
+export TMP=/tmp
+export TMPDIR=$TMP
+
+export ORACLE_HOSTNAME=primary.localdomain
+export ORACLE_UNQNAME=ORCL
+export ORACLE_BASE=/u01/app/oracle
+export DB_HOME=$ORACLE_BASE/product/12.2.0.1/db_1
+export ORACLE_HOME=$DB_HOME
+export ORACLE_SID=orcl
+export ORACLE_TERM=xterm
+export BASE_PATH=/usr/sbin:$PATH
+export PATH=$ORACLE_HOME/bin:$BASE_PATH
+
+export LD_LIBRARY_PATH=$ORACLE_HOME/lib:/lib:/usr/lib
+export CLASSPATH=$ORACLE_HOME/JRE:$ORACLE_HOME/jlib:$ORACLE_HOME/rdbms/jlib
+
+

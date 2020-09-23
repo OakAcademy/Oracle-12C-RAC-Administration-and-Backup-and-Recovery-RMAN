@@ -1,0 +1,191 @@
+############################################
+--if it is not running already then start listener
+$ lsnrctl start
+
+--if it is not started already, startup database
+$ sqlplus / as sysdba
+
+SQL> startup
+############################################
+
+
+--Configure Network
+
+--enable network adapters on both machines
+--Adapter 1 
+Attached to : Internal Netwok
+Name : pubnet
+
+--Adapter 2 
+Attached to : Internal Netwok
+Name : privnet
+
+--Adapter 3 
+Attached to : NAT
+
+--start both machines
+
+--Primary
+--open network settings
+
+--Interface 1
+Identity
+MAC Address: 'choose the MAC adress of adapter 1'
+
+IPv4
+IPv4 Method : Manuel
+Adress : 192.168.56.100
+Netmask : 255.255.255.0
+Gateway : 0.0.0.0
+
+--Interface 2
+Identity
+MAC Address: 'choose the MAC adress of adapter 2'
+
+IPv4
+IPv4 Method : Manuel
+Adress : 192.168.10.1
+Netmask : 255.255.255.0
+Gateway : 0.0.0.0
+
+--Interface 3
+Identity
+MAC Address: 'choose the MAC adress of adapter 3'
+
+IPv4
+IPv4 Method : Automatic(DHCP)
+
+
+--Rmancat
+--open network settings
+
+--Interface 1
+Identity
+MAC Address: 'choose the MAC adress of adapter 1'
+
+IPv4
+IPv4 Method : Manuel
+Adress : 192.168.56.101
+Netmask : 255.255.255.0
+Gateway : 0.0.0.0
+
+--Interface 2
+Identity
+MAC Address: 'choose the MAC adress of adapter 2'
+
+IPv4
+IPv4 Method : Manuel
+Adress : 192.168.10.2
+Netmask : 255.255.255.0
+Gateway : 0.0.0.0
+
+--Interface 3
+Identity
+MAC Address: 'choose the MAC adress of adapter 3'
+
+IPv4
+IPv4 Method : Automatic(DHCP)
+
+--reboot machines
+
+--add to "/etc/hosts"
+$ su root
+
+$ vi /etc/hosts
+
+192.168.56.101    rmancat.localdomain   rmancat
+192.168.56.100    primary.localdomain   primary
+
+--check connections
+$ ping primary
+
+$ ping rmancat
+
+--add to tnsnames.ora
+$ vi $ORACLE_HOME/network/admin/tnsnames.ora
+
+primary =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = primary.localdomain)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = orcl.localdomain)
+    )
+  )
+
+rmancat =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = rmancat.localdomain)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = rmancat)
+    )
+  )
+
+rcatpdb =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = rmancat.localdomain)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = rcatpdb)
+    )
+  )
+
+--Start listener from both servers
+$ lsnrctl start
+
+--Start up database
+$ sqlplus / as sysdba
+
+SQL> startup
+
+
+--Create RMAN catalog database
+
+--On rmancat
+
+SQL> select name, open_mode from v$database;
+
+SQL> show pdbs
+
+SQL> alter pluggable database rcatpdb open;
+
+SQL> alter pluggable database rcatpdb save state;
+
+--Change your session to the pdb database
+
+SQL> alter session set container = rcatpdb;
+
+SQL> show con_name
+
+SQL> show parameter db_create_file_dest
+
+--create a tablespace to store backup information of registered databases
+SQL> create tablespace tbs_catalog
+datafile '/u01/app/oracle/oradata/catalog01.dbf' size 100M 
+autoextend on next 10M maxsize 1024M;
+
+--create a user who will work as a recovery catalog owner
+SQL> CREATE USER rcatown IDENTIFIED BY rcatown
+DEFAULT TABLESPACE tbs_catalog
+TEMPORARY TABLESPACE temp 
+QUOTA UNLIMITED ON tbs_catalog;
+
+SQL> GRANT connect, resource, recovery_catalog_owner TO rcatown;
+
+
+
+--Connect RMAN to rcatpdb database with catalog clause
+$ rman catalog rcatown/rcatown@rcatpdb
+
+--Apply to create catalog database command
+RMAN> create catalog;
+
+--Connect RMAN with target and catalog clause
+$ rman target sys/oracle@primary catalog rcatown/rcatown@rcatpdb
+
+--Register target database  and check the structure of the database using report schema
+RMAN> register database;
+
+RMAN> report schema;
+

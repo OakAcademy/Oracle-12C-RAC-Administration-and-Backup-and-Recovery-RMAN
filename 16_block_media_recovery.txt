@@ -1,0 +1,75 @@
+############################################
+--if it is not running already then start listener
+$ lsnrctl start
+
+--if it is not started already, startup database
+$ sqlplus / as sysdba
+
+SQL> startup
+############################################
+
+
+##########
+--BACKUP DATABASE IF YOU DON'T AFTER TSPITR
+$ rman target sys/oracle@primary catalog rcatown/rcatown@rcatpdb
+
+RMAN> BACKUP DATABASE PLUS ARCHIVELOG;
+##########
+
+--to check the backup of tablespace tbs_data
+$ rman target sys/oracle@primary catalog rcatown/rcatown@rcatpdb
+
+RMAN> RESTORE TABLESPACE pdb1:tbs_data VALIDATE;
+
+--to identify name of the file to be corrupted 
+RMAN> REPORT SCHEMA;
+
+--to create a data block corruption
+$ vi &file_name&
+
+corruption test
+
+--try to select the table which is on the corrupted datafile
+$ sqlplus mytest/test_123@pdb1
+
+SQL> select count(*) from test_tab1;
+
+
+--Recovering Individual Blocks
+
+--identify the failure
+RMAN> LIST FAILURE;
+
+RMAN> VALIDATE DATAFILE 26;
+
+--to recover corrupted blocks
+RMAN> RECOVER DATAFILE 26 BLOCK 131;
+
+###########################################
+--Recovering All Blocks in V$DATABASE_BLOCK_CORRUPTION
+
+$ sqlplus / as sysdba
+
+--to determine whether corrupt blocks exist
+SQL> SELECT * FROM V$DATABASE_BLOCK_CORRUPTION;
+
+--start RMAN and connect to the target database.
+$ rman target sys/oracle@primary catalog rcatown/rcatown@rcatpdb
+
+--recover all blocks marked corrupt
+RMAN> RECOVER CORRUPTION LIST;
+###########################################
+
+--Recovering Individual Blocks Using the Data Recovery Advisor
+
+$ rman target /
+
+--list the failures recorded by the Data Recovery Advisor
+RMAN> LIST FAILURE;
+
+--to generate repair options and create a repair script to perform the automated repair tasks
+RMAN> ADVISE FAILURE;
+
+--to perform the automated repairs
+RMAN> REPAIR FAILURE;
+

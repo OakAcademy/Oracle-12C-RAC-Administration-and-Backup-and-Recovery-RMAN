@@ -1,0 +1,180 @@
+
+Configure tnsnames.ora
+
+--on both nodes
+$ cd /u01/app/oracle/product/12.2.0.1/db_1/network/admin
+
+--open tnsnames file and append it scripts below.
+$ gedit tnsnames.ora 
+
+RACDB1 =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = rac1.localdomain)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = racdb)
+    )
+  )
+
+RACDB2 =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = rac2.localdomain)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = racdb)
+    )
+  )
+
+
+--Enable Archive Log Mode In Oracle RAC
+
+--stop the database service.
+$ srvctl stop database -db racdb
+
+--start the database in mount state.
+$ srvctl start database -db racdb -startoption mount
+
+$ sqlplus / as sysdba
+
+--enable archive log mode.
+SQL> alter database archivelog;
+
+SQL> archive log list
+
+--Restart the database service 
+$ srvctl stop database -db racdb 
+$ srvctl start database -db racdb 
+
+
+--create archive directory 
+$ asmcmd
+
+ASMCMD> cd data
+ASMCMD> mkdir archive
+
+--set the archive destination to a ASM DISK
+$ sqlplus / as sysdba
+
+SQL> alter system set log_archive_dest_1='location=+data/archive/' scope=both sid='*';
+
+SQL> alter system switch logfile;
+
+###
+--These commands are written for disable archive mode after exercise. DO NOT run them now.
+--For disabling archive mode also steps are same
+$ srvctl stop database -db racdb 
+$ srvctl start database -db racdb -o mount
+SQL> alter database noarchivelog;
+$ srvctl stop database -db racdb 
+$ srvctl start database -db racdb 
+###
+
+$ rman target /
+
+RMAN> show all;
+
+-- Using RMAN to Create Backups in Oracle RAC
+RMAN> RUN
+{
+ALLOCATE CHANNEL C1 DEVICE TYPE DISK CONNECT 'sys/Oracle_123@racdb1';
+ALLOCATE CHANNEL C2 DEVICE TYPE DISK CONNECT 'sys/Oracle_123@racdb2';
+BACKUP DATABASE PLUS ARCHIVELOG;
+RELEASE CHANNEL C1;
+RELEASE CHANNEL C2;
+}
+EXIT
+
+
+--Please note dbid and backup piece name before start
+DBID: 
+Backup Piece Name: 
+
+
+$ srvctl remove database -db racdb
+
+$ rman target /
+
+RMAN> set dbid PASTE_DBID;
+
+RMAN> startup force nomount;
+
+RMAN> restore spfile from autobackup;
+RMAN-00571: ===========================================================
+RMAN-00569: =============== ERROR MESSAGE STACK FOLLOWS ===============
+RMAN-00571: ===========================================================
+RMAN-03002: failure of restore command at 04/12/2019 21:52:48
+RMAN-06172: no AUTOBACKUP found or specified handle is not a valid copy or piece
+
+
+RMAN> restore spfile from 'PASTE_BACKUP_PIECE_NAME';
+
+RMAN> restore controlfile  from 'PASTE_BACKUP_PIECE_NAME';
+
+RMAN> shutdown immediate;
+
+
+$ sqlplus / as sysdba
+
+SQL> create pfile='/home/oracle/initracdb.ora' from spfile='/u01/app/oracle/product/12.2.0.1/db_1/dbs/spfileracdb1.ora';
+
+SQL> startup nomount pfile='/home/oracle/initracdb.ora';
+
+SQL> alter database mount;
+
+$ rman target /
+
+--Restoring Backups
+
+RMAN> restore database;
+
+RMAN> recover database;
+
+RMAN> alter database open;
+
+
+$ scp /home/oracle/initracdb.ora rac2:/home/oracle/initracdb.ora
+
+
+--on rac2
+$ sqlplus / as sysdba 
+
+SQL> startup nomount pfile='/home/oracle/initracdb.ora';
+
+SQL> alter database mount;
+
+SQL> alter database open;
+
+--on both nodes
+SQL> select name,open_mode from gv$database;
+
+
+--on rac1
+$ srvctl add database -db racdb -oraclehome /u01/app/oracle/product/12.2.0.1/db_1
+
+$ srvctl config database -db racdb
+
+$ srvctl add instance -db racdb -i racdb1 -n rac1
+$ srvctl add instance -db racdb -i racdb2 -n rac2
+
+$ srvctl start database -db racdb
+$ srvctl status database -db racdb
+
+
+-- create password file
+$ cd /u01/app/oracle/product/12.2.0.1/db_1/bin
+$ ./orapwd file='+data/racdb/password/pwdracdb' dbuniquename='racdb' password=Oracle_123 format=12
+
+--control whether database is aware of passwordfile
+$ sqlplus / as sysdba
+
+SQL> select username from v$pwfile_users;
+
+--create spfile on asm
+SQL> create spfile='+data/racdb/parameterfile/spfileracdb.ora' from memory;
+
+$ srvctl stop database -db racdb
+
+$ srvctl start database -db racdb
+
+$ srvctl config database -db racdb
+

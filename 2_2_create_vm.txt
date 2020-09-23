@@ -1,0 +1,26 @@
+
+--Name and operating system
+Name: primary
+Machine Folder: (Default)
+Type: Linux
+Version: Oracle (64-bit)
+
+--Memory size
+4096 MB
+
+--Hard disk
+Create a virtual hard disk now
+
+--Hard disk file type
+VDI (VirtualBox Disk Image)
+
+--Storage on physical hard disk
+Dynamically allocated
+
+--File location and size
+Name: (Default)
+Size: 30 GB
+
+
+
+

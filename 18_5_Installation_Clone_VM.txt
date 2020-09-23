@@ -1,0 +1,68 @@
+###
+Installation in this document is only for  exercises of this course.
+Do not use this documentation for installation of system that will be used actively.
+###
+
+
+--Clone the Virtual Machine
+
+--Shutdown the VM.
+--Start clone wizard: Main menu | Machine | Clone
+
+name of new machine: rac2
+
+Full Clone
+
+--Copy new MAC addresses of rac2
+Network | Advanced
+--copy your MAC Addresses here
+MAC Adress of Adapter 1: 
+MAC Adress of Adapter 2: 
+MAC Adress of Adapter 3: 
+
+--Start cloned VM rac2 and login as root user.
+--Change hostname by editing file "/etc/sysconfig/network", HOSTNAME parameter:
+HOSTNAME=rac2.localdomain
+
+
+--Start "Network Connections" tool 
+System | Preferences | Network Connections
+
+--delete other interfaces eth3,eth4 and eth5
+
+Edit System Eth0
+Wired | Device MAC Address
+--Paste MAC adress of network adapter 1
+IPv4 Settings
+Manual
+Address: 192.168.56.72
+Netmask: 255.255.255.0
+Gateway: 0.0.0.0
+
+Edit System Eth1
+Wired | Device MAC Address
+--Paste MAC adress of network adapter 2
+IPv4 Settings
+Manual
+Address: 192.168.10.2
+Netmask: 255.255.255.0
+Gateway: 0.0.0.0
+
+Edit System Eth2
+Wired | Device MAC Address
+--Paste MAC adress of network adapter 3
+IPv4 Settings
+Automatic
+
+Reboot system.
+
+--Start both vms
+
+--from rac1
+$ ping rac2
+$ ping rac2-priv
+
+--from rac2
+$ ping rac1
+$ ping rac1-priv
+

@@ -1,0 +1,42 @@
+
+--add oracle to user groups
+
+$ usermod -G oinstall,dba,vboxsf oracle
+
+
+--run installer
+
+$ cd /media/database
+$ ./runInstaller
+
+--Configure Security Updates
+Uncheck "I wish to receive security updates via My Oracle Support" option
+
+--Installation Option
+Install database software only
+
+--Database Installation Options
+Single instance database installation
+
+--Database Edition
+Enterprise Edition
+
+--Installation Location
+Accept defaults
+
+--Create Inventory
+Accept defaults
+
+--Operating System Groups
+Accept defaults
+
+--Prerequisite Checks
+If available fix&check again, if not ignore all
+
+--Summary
+Install
+
+--Finish
+Close
+
+

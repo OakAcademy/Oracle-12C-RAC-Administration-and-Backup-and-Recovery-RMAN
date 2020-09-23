@@ -1,0 +1,288 @@
+############################################
+--if it is not running already then start listener
+$ lsnrctl start
+
+--if it is not started already, startup database
+$ sqlplus / as sysdba
+
+SQL> startup
+############################################
+
+
+--create a new pluggable database
+$ sqlplus / as sysdba
+
+SQL> CREATE PLUGGABLE DATABASE pdbtest ADMIN USER admpdb identified by "oracle"
+DEFAULT TABLESPACE USERS
+DATAFILE '/u01/app/oracle/oradata/testpdb01.dbf'
+SIZE 25M AUTOEXTEND ON;
+
+--backup pdbtest
+$ rman target sys/oracle@primary catalog rcatown/rcatown@rcatpdb
+
+RMAN> BACKUP PLUGGABLE DATABASE PDBTEST;
+
+RMAN> UNREGISTER DATABASE;
+
+RMAN> REGISTER DATABASE;
+
+--create a image copy for the datafile number 20
+RMAN> BACKUP AS COPY
+  TAG 'COPYOFDATAFILE'
+  FORMAT '/home/oracle/backups/df_data_02.dbf'
+  DATAFILE 20;
+
+
+--Listing All Backups and Copies
+
+--Summary Listing of All Backups
+RMAN> list backup summary;
+
+--Verbose Listings of Backups and Copies
+RMAN> list backup;
+
+RMAN> list copy;
+
+--Listing Backups By File
+RMAN> list backup by file;
+
+
+--Listing Selected Backups and Copies
+
+--list backups of all files in database
+RMAN> LIST BACKUP OF DATABASE;
+
+--list copy of specified datafile
+SQL> sqlplus / as sysdba
+
+SQL> col name format a50
+
+SQL> select df.file#,df.name
+from v$datafile df, v$tablespace ts 
+where df.ts#=ts.ts# and ts.name='TBS_DATA';
+
+RMAN> LIST COPY OF DATAFILE '&file_name&';
+
+--list specified backup set
+RMAN> LIST BACKUP SUMMARY;
+
+RMAN> LIST BACKUPSET &key&;
+
+--list datafile copy
+RMAN> LIST DATAFILECOPY '&file_name&';
+
+RMAN> LIST DATAFILECOPY ALL;
+
+--specify a backup set by tag
+RMAN> LIST BACKUPSET TAG 'PERMANENT';
+
+--specify a backup by directory or path
+RMAN> LIST COPY LIKE '/home/oracle/backups/%';
+
+--list copies of data file 19 contained in backup sets
+RMAN> LIST BACKUP OF DATAFILE 19;
+
+--specify a backup or copy by a range of completion dates
+RMAN> LIST BACKUP OF DATAFILE 20 COMPLETED BETWEEN '10-JUN-20' AND '19-JUN-20';
+
+--list archive log backups 
+RMAN> LIST ARCHIVELOG ALL;
+
+
+--Listing Database Incarnations
+
+RMAN> LIST INCARNATION;
+
+
+--Reports of RMAN Backups
+
+--Reporting on Files Needing a Backup Under a Retention Policy
+RMAN> REPORT NEED BACKUP;
+
+--Reporting on Files Needing a Backup with Different Retention Policies
+RMAN> REPORT NEED BACKUP RECOVERY WINDOW OF 14 DAYS;
+
+RMAN> REPORT NEED BACKUP REDUNDANCY 10;
+
+RMAN> REPORT NEED BACKUP DAYS 7;
+
+RMAN> REPORT NEED BACKUP INCREMENTAL 2;
+
+--Finding Tablespaces and Data Files Needing a Backup
+RMAN> REPORT NEED BACKUP RECOVERY WINDOW OF 2 DAYS DATABASE SKIP TABLESPACE TBS_DATA;
+
+RMAN> REPORT NEED BACKUP REDUNDANCY 3 DATAFILE 22;
+
+--uses configured retention policy
+RMAN> REPORT NEED BACKUP TABLESPACE USERS;
+
+
+--Report Backup Needing Files on Specified Device Type
+RMAN> REPORT NEED BACKUP DEVICE TYPE DISK;
+
+RMAN> REPORT NEED BACKUP RECOVERY WINDOW OF 2 DAYS DATABASE DEVICE TYPE DISK;
+
+RMAN> REPORT NEED BACKUP TABLESPACE PDB1:TBS_INDX DEVICE TYPE DISK; 
+
+
+--Reporting on Data Files Affected by Unrecoverable Operations
+
+RMAN> REPORT UNRECOVERABLE;
+
+
+--To report obsolete backups:
+
+--to update the status of backups in the repository compared to their status on disk
+RMAN> CROSSCHECK BACKUP DEVICE TYPE DISK;
+
+--crosschecks all backups on all devices 
+RMAN> CROSSCHECK BACKUP;
+
+--to identify which backups are obsolete because they are no longer needed for recovery
+RMAN> REPORT OBSOLETE;
+
+--to check which backups are obsolete under different recovery window-based or redundancy-based retention policies
+RMAN> REPORT OBSOLETE RECOVERY WINDOW OF 3 DAYS;
+
+RMAN> REPORT OBSOLETE REDUNDANCY 2;
+
+
+--Reporting on the Database Schema
+
+RMAN> REPORT SCHEMA;
+
+--schema 14 days ago
+RMAN> REPORT SCHEMA AT TIME 'SYSDATE-14';
+
+--schema at scn 1000
+RMAN> REPORT SCHEMA AT SCN 1000;
+
+--schema at sequence 100
+RMAN> REPORT SCHEMA AT SEQUENCE 100 THREAD 1;
+
+
+--Reporting in CDBs
+
+--to display all the data files in the CDB that need backup
+RMAN> REPORT NEED BACKUP;
+
+--to provide a summary list of backups of the whole CDB
+RMAN> LIST BACKUP SUMMARY;
+
+
+--Reporting in PDBs
+
+--when connected to CDB
+RMAN> LIST BACKUP OF PLUGGABLE DATABASE pdb1;
+
+RMAN> REPORT NEED BACKUP PLUGGABLE DATABASE pdb1; 
+
+--when connected to PDB
+$ rman target sys/oracle@pdb1
+
+RMAN> LIST BACKUP;
+
+RMAN> REPORT NEED BACKUP; 
+
+
+--To list backups of dropped PDBs:
+
+--backup new pluggable database
+RMAN> BACKUP PLUGGABLE DATABASE PDBTEST;
+
+--drop pluggable database
+SQL> DROP PLUGGABLE DATABASE PDBTEST INCLUDING DATAFILES;
+
+--to determine the GUID of the PDB that was dropped
+SQL> SELECT pdb_name, pdb_guid 
+  FROM dba_pdb_history 
+  WHERE pdb_name = 'PDBTEST';
+
+--connect to the root
+$ rman target sys/oracle@primary catalog rcatown/rcatown@rcatpdb
+
+--to display backups of a dropped PDB
+RMAN> LIST BACKUP GUID '&pdbguid&';
+
+RMAN> LIST COPY GUID '&pdbguid&';
+
+
+--to query details about past and current RMAN jobs
+
+--to view information about the backup type, status, and start and end time.
+SQL> COL STATUS FORMAT a9
+COL hrs    FORMAT 999.99
+
+SQL> SELECT SESSION_KEY, INPUT_TYPE, STATUS,
+       TO_CHAR(START_TIME,'mm/dd/yy hh24:mi') start_time,
+       TO_CHAR(END_TIME,'mm/dd/yy hh24:mi')   end_time,
+       ELAPSED_SECONDS/3600                   elapsed_hours
+FROM V$RMAN_BACKUP_JOB_DETAILS
+ORDER BY SESSION_KEY;
+
+--to view for the rate of backup jobs in an RMAN session.
+SQL> COL in_sec FORMAT a10
+COL out_sec FORMAT a10
+COL TIME_TAKEN_DISPLAY FORMAT a10
+
+SQL> SELECT SESSION_KEY, 
+       OPTIMIZED, 
+       COMPRESSION_RATIO, 
+       INPUT_BYTES_PER_SEC_DISPLAY in_sec,
+       OUTPUT_BYTES_PER_SEC_DISPLAY out_sec, 
+       TIME_TAKEN_DISPLAY
+FROM   V$RMAN_BACKUP_JOB_DETAILS
+ORDER BY SESSION_KEY;
+
+--to view the size of the backups in an RMAN session
+SQL> COL in_size  FORMAT a10
+COL out_size FORMAT a10
+
+SQL> SELECT SESSION_KEY, 
+       INPUT_TYPE,
+       COMPRESSION_RATIO, 
+       INPUT_BYTES_DISPLAY in_size,
+       OUTPUT_BYTES_DISPLAY out_size
+FROM   V$RMAN_BACKUP_JOB_DETAILS
+ORDER BY SESSION_KEY;
+
+--create a compressed backup to check COMPRESSION_RATIO
+RMAN> RMAN> BACKUP AS COMPRESSED BACKUPSET DATABASE PLUS ARCHIVELOG;
+
+
+--to determine which backup pieces are encrypted
+SQL> COL BS_REC    FORMAT 99999
+COL BP_REC    FORMAT 99999
+COL MB        FORMAT 9999999
+COL ENCRYPTED FORMAT A7
+COL TAG       FORMAT A25
+
+SQL> SELECT S.RECID AS "BS_REC", P.RECID AS "BP_REC", P.ENCRYPTED, 
+       P.TAG, P.HANDLE AS "MEDIA_HANDLE"
+FROM   V$BACKUP_PIECE P, V$BACKUP_SET S
+WHERE  P.SET_STAMP = S.SET_STAMP
+AND    P.SET_COUNT = S.SET_COUNT
+AND    P.ENCRYPTED='YES';
+
+
+--Querying Recovery Catalog Views
+
+--to query the catalog for information about the current incarnation of a database
+SQL> CONNECT / AS SYSBACKUP
+
+SQL> SELECT DBID FROM V$DATABASE;
+
+--connect to the recovery catalog database as the owner of the recovery catalog
+$ sqlplus rcatown/rcatown@rcatpdb
+
+--Obtain the database key for the database
+SQL> SELECT DB_KEY FROM RC_DATABASE 
+WHERE DBID = dbid_of_target;
+
+--Query the records for the current incarnation of the database
+SQL> SELECT BS_KEY, BACKUP_TYPE, COMPLETION_TIME
+FROM   RC_DATABASE_INCARNATION i, RC_BACKUP_SET b
+WHERE  i.DB_KEY = &DB_KEY&
+AND    i.DB_KEY = b.DB_KEY
+AND    i.CURRENT_INCARNATION = 'YES';
+

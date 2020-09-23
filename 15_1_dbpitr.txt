@@ -1,0 +1,98 @@
+############################################
+--if it is not running already then start listener
+$ lsnrctl start
+
+--if it is not started already, startup database
+$ sqlplus / as sysdba
+
+SQL> startup
+############################################
+
+
+$ rman target sys/oracle@primary catalog rcatown/rcatown@rcatpdb
+
+--Please note dbid
+DBID = &DBID&
+
+--check existing backups
+RMAN> RESTORE DATABASE VALIDATE;
+
+RMAN> RESTORE DATABASE PREVIEW SUMMARY;
+
+RMAN> RESTORE DATABASE PREVIEW;
+
+
+--switch redo logs
+$ sqlplus / as sysdba
+
+SQL> ALTER SYSTEM SWITCH LOGFILE;
+
+SQL> SHUTDOWN IMMEDIATE;
+
+SQL> STARTUP MOUNT;
+
+
+--Backup Database and Archive Logs
+$ rman target / catalog rcatown/rcatown@rcatpdb
+
+RMAN> BACKUP DATABASE PLUS ARCHIVELOG;
+
+--drop database
+$ sqlplus / as sysdba
+
+SQL> SHUTDOWN IMMEDIATE;
+
+SQL> STARTUP NOMOUNT RESTRICT;
+
+SQL> ALTER DATABASE MOUNT;
+
+SQL> DROP DATABASE;
+
+--restore spfile and control file
+$ rman target / catalog rcatown/rcatown@rcatpdb
+
+RMAN> set dbid &DBID&;
+
+RMAN> startup force nomount;
+
+RMAN> restore spfile from autobackup;
+
+RMAN> list backup summary;
+
+RMAN> list backup tag &TAG_NAME&;
+
+BACKUP_PIECE:
+Ckp SCN:
+
+RMAN> restore spfile from '&BACKUP_PIECE&';
+
+RMAN> restore controlfile  from '&BACKUP_PIECE&';
+
+RMAN> shutdown immediate;
+
+
+--open database in mount mode
+$ sqlplus / as sysdba
+
+SQL> startup nomount;
+
+SQL> alter database mount;
+
+SQL> show parameter control_files
+
+SQL> alter system set control_files='&FILE_NAME&' scope=spfile;
+
+SQL> shutdown immediate;
+
+SQL> startup mount;
+
+
+--restore database
+$ rman target / catalog rcatown/rcatown@rcatpdb
+
+RMAN> RESTORE DATABASE;
+
+RMAN> RECOVER DATABASE UNTIL SCN &Ckp_SCN&;
+
+RMAN> ALTER DATABASE OPEN RESETLOGS;
+

@@ -1,0 +1,77 @@
+###
+Installation in this document is only for  exercises of this course.
+Do not use this documentation for installation of system that will be used actively.
+###
+
+
+--Install the Grid Infrastructure
+
+--Make sure both virtual machines are started. 
+--Perform the following on the first node as the "oracle" user.
+$ cd /u01/app/12.2.0.1/grid
+$ unzip -q /media/linuxx64_12201_grid_home.zip
+
+--Install cvuqdisk package from the Oracle grid/rpm directory as "root" user
+--From rac1.
+$ su root
+$ cd /u01/app/12.2.0.1/grid/cv/rpm
+$ rpm -Uvh cvuqdisk*
+$ scp ./cvuqdisk* root@rac2:/tmp
+
+--From rac2.
+$ su root
+$ rpm -Uvh /tmp/cvuqdisk*
+
+--Configure the Grid Infrastructure as the oracle user
+$ cd /u01/app/12.2.0.1/grid
+$ ./gridSetup.sh
+
+Configure Oracle Grid Infrastructure for a New Cluster
+
+Configure an Oracle Standalone Cluster
+
+Cluster Name: rac-cluster
+SCAN Name: rac-scan.localdomain
+
+Click Add
+Public Hostname: rac2.localdomain
+Virtual Hostname: rac2-vip.localdomain
+Click the "SSH Connectivity..." button and enter the password for the "oracle" user. 
+Click the "Setup" button to configure SSH connectivity, and the "Test" button to test it once it is complete.
+
+Specify Network Interface Usage screen check the Public and Private networks are specified correctly.
+
+Configure ASM using block devices
+
+No
+
+Redundancy: External
+Click the Change Discovery Path
+/dev/oracleasm/disks
+Uncheck  Configure Oracle ASM Filter Driver
+
+Use the same passwords for this accounts
+Specify password
+
+Do not use IPMI
+
+Do not register EM
+
+Set the groups to "dba"
+
+Oracle base: /u01/app/oracle
+
+Accept the default inventory directory
+
+Select "Automatically run configuration scripts" and check "Use root option", then type password 
+
+If you have any issues use the "Fix & Check Again" button
+Then check "Ignore All"
+
+Install
+
+Close
+
+$ . grid_env
+$ crsctl stat res -t
+

@@ -1,0 +1,25 @@
+
+
+--OPATCH lsinventory
+
+$ cd /u01/app/oracle/product/12.2.0.1/db_1/OPatch
+
+$./opatch lsinventory 
+
+$ ./opatch lsinventory > /home/oracle/opatch.txt
+
+--AWR (Automatic Workload Repository) Report
+
+$ sqlplus / as sysdba
+
+SQL> EXEC DBMS_WORKLOAD_REPOSITORY.create_snapshot;
+
+SQL> @?/rdbms/admin/awrrpt
+
+
+--ASH (Active Session History) Report
+
+$ sqlplus / as sysdba
+
+SQL> @?/rdbms/admin/ashrpt
+

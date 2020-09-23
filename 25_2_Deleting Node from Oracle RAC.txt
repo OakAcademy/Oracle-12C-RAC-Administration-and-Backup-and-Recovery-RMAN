@@ -1,0 +1,58 @@
+
+
+--Ensure that Grid_home correctly specifies the full directory path for the Oracle Clusterware home on each node
+$ . grid_env
+$ echo $ORACLE_HOME
+
+
+--Determine whether the node you want to delete is active and whether it is pinned:
+$ olsnodes -s -t
+
+--If the node is pinned, then run
+$ crsctl unpin css
+
+--status of database
+$ srvctl status database -db racdb
+
+--stop instance
+$ srvctl stop instance -db racdb -i racdb2
+
+--remove instance
+$ srvctl remove instance -db racdb -i racdb2
+
+--Disable and stop listener before deleting the Oracle RAC software. Run the following commands on any node in the cluster
+$ srvctl disable listener -l listener -n rac2
+$ srvctl stop listener -l listener -n rac2
+
+--Deinstall the Oracle Clusterware home from rac2
+$ cd /u01/app/12.2.0.1/grid/deinstall
+$ . deinstall -local
+
+--when prompted run
+-- /u01/app/12.2.0.1/grid/crs/install/rootcrs.sh -force  -deconfig -paramfile "/tmp/deinstall2019-04-03_06-05-27PM/response/deinstall_OraGI12Home1.rsp"
+
+--Run the following command from rac1 as root to delete the node from the cluster
+$ su root
+$ cd /u01/app/12.2.0.1/grid/bin
+$ crsctl delete node -n rac2
+
+--exit from root
+
+--Verify the node have been successfully deleted from the cluster on rac1
+$ cluvfy stage -post nodedel -n rac2
+
+
+--Determine whether the VIP for rac2 still exists on rac1
+$ srvctl config vip -node rac2
+
+--If the VIP still exists, then delete it
+$ srvctl stop vip -node rac2
+$ srvctl remove vip -node rac2
+
+
+--Remove the database home from rac2
+$ cd /u01/app/oracle/product/12.2.0.1/db_1/deinstall
+$ . deinstall -local
+
+
+

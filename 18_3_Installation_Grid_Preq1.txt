@@ -1,0 +1,48 @@
+###
+Installation in this document is only for  exercises of this course.
+Do not use this documentation for installation of system that will be used actively.
+###
+
+--OPTIONAL
+$ yum update -y
+
+--Oracle Clusterware Installation Prerequisites. Part 1
+
+$ yum install oracle-database-server-12cR2-preinstall -y
+
+
+--Install ASMLib:
+$ yum install oracleasm -y
+$ yum install oracleasm-support -y
+
+
+--control if oracle user is created
+$ id oracle
+
+--control groups are created
+$ groups
+
+--groups of oracle
+$ groups oracle
+
+
+--Configure ASMLib running this command and answering questions
+$ oracleasm configure -i
+Configuring the Oracle ASM library driver.
+
+This will configure the on-boot properties of the Oracle ASM library
+driver.  The following questions will determine whether the driver is
+loaded on boot and what permissions it will have.  The current values
+will be shown in brackets ('[]').  Hitting <ENTER> without typing an
+answer will keep that current value.  Ctrl-C will abort.
+
+Default user to own the driver interface []: oracle
+Default group to own the driver interface []: oinstall
+Start Oracle ASM library driver on boot (y/n) [n]: y
+Scan for Oracle ASM disks on boot (y/n) [y]: 
+Writing Oracle ASM library driver configuration: done
+
+--install "gedit"
+$ yum install gedit
+
+

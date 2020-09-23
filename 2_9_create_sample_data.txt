@@ -1,0 +1,81 @@
+
+############################################
+--if it is not running already then start listener
+$ lsnrctl start
+
+--if it is not started already, startup database
+$ sqlplus / as sysdba
+
+SQL> startup
+############################################
+
+--open pluggable database
+$ sqlplus / as sysdba
+
+SQL> SELECT NAME,OPEN_MODE FROM V$PDBS;
+
+SQL> ALTER PLUGGABLE DATABASE PDB1 OPEN;
+
+SQL> ALTER SESSION SET CONTAINER = PDB1;
+
+SQL> SHOW CON_NAME
+ 
+SQL> ALTER PLUGGABLE DATABASE PDB1 SAVE STATE;
+
+--create tablespace
+SQL> CREATE TABLESPACE tbs_data
+   DATAFILE '/u01/app/oracle/oradata/tbs_data01.dbf' SIZE 10M
+   AUTOEXTEND ON NEXT 1M MAXSIZE 100M;
+
+SQL> ALTER TABLESPACE tbs_data 
+   ADD DATAFILE '/u01/app/oracle/oradata/tbs_data02.dbf' SIZE 10M
+   AUTOEXTEND ON NEXT 1M MAXSIZE 100M;
+
+SQL> CREATE TABLESPACE tbs_indx
+   DATAFILE '/u01/app/oracle/oradata/tbs_indx01.dbf' SIZE 10M
+   AUTOEXTEND ON NEXT 1M MAXSIZE 100M;
+
+--create user
+SQL> CREATE USER mytest
+IDENTIFIED BY test_123
+DEFAULT TABLESPACE tbs_data
+TEMPORARY TABLESPACE temp;
+
+SQL> grant connect, resource, dba to mytest;
+
+SQL> grant unlimited tablespace to mytest;
+
+--add an entry to tnsnames for pdb1
+$ cd $ORACLE_HOME/network/admin
+
+$ vi tnsnames.ora
+
+pdb1 =
+  (DESCRIPTION =
+    (ADDRESS = (PROTOCOL = TCP)(HOST = primary.localdomain)(PORT = 1521))
+    (CONNECT_DATA =
+      (SERVER = DEDICATED)
+      (SERVICE_NAME = pdb1.localdomain)
+    )
+  )
+
+--connect to pdb1 with mytest
+$ sqlplus mytest/test_123@pdb1
+
+--create table
+SQL> create table test_tab1
+(id number,
+name varchar2(30),
+surname varchar2(30),
+birth_date date
+)tablespace tbs_data;
+
+SQL> grant all on test_tab1 to public;
+
+--inserts
+SQL> insert into test_tab1 values(1,'aaa','bbb',to_date('22.01.2005','dd.mm.yyyy'));
+insert into test_tab1 values(2,'ccc','ddd',to_date('11.04.2002','dd.mm.yyyy'));
+insert into test_tab1 values(3,'eee','fff',to_date('15.09.1998','dd.mm.yyyy'));
+commit;
+
+

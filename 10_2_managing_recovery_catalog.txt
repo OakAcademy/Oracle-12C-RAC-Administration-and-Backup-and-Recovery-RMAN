@@ -1,0 +1,184 @@
+############################################
+--if it is not running already then start listener
+$ lsnrctl start
+
+--if it is not started already, startup database
+$ sqlplus / as sysdba
+
+SQL> startup
+############################################
+
+
+--Maintaining a Recovery Catalog
+
+$ rman target sys/oracle@primary catalog rcatown/rcatown@rcatpdb
+
+--to list all of the backups recorded in the recovery catalog
+RMAN> LIST BACKUP SUMMARY;
+
+--to delete all backups of the database completely
+RMAN> DELETE BACKUP;
+
+RMAN> DELETE COPY;
+
+--tp unregister database
+RMAN> UNREGISTER DATABASE;
+
+
+-- Manually Resynchronizing the Recovery Catalog
+
+--register database back to catalog database
+RMAN> REGISTER DATABASE;
+
+RMAN> LIST BACKUP SUMMARY;
+
+--on primary server
+$ rman target /
+
+--backup database before register to catalog
+RMAN> BACKUP DATABASE PLUS ARCHIVELOG;
+
+--Resynchronize the recovery catalog
+RMAN> RESYNC CATALOG;
+
+
+--Backing Up the Recovery Catalog
+
+--run the recovery catalog database in ARCHIVELOG mode
+$ sqlplus / as sysdba
+
+SQL> archive log list
+
+SQL> shutdown immediate;
+
+SQL> startup mount;
+
+SQL> alter database archivelog;
+
+SQL> alter database open;
+
+--connect to catalog database as target
+$ rman target /
+
+--set the retention policy to a REDUNDANCY value greater than 1
+RMAN> CONFIGURE RETENTION POLICY TO REDUNDANCY 3;
+
+--configure the control file autobackup feature to ON
+RMAN> CONFIGURE CONTROLFILE AUTOBACKUP ON;
+
+Back up the database
+RMAN> BACKUP DATABASE PLUS ARCHIVELOG;
+
+***NOTE***
+Back up the catalog database at regular intervals, to two separate media (for example, disk and tape) if available.
+Do not use another recovery catalog as the repository for the backups.
+**********
+
+
+--Creating Stored Scripts
+
+$ rman target sys/oracle@primary catalog rcatown/rcatown@rcatpdb
+
+--to create a local script
+RMAN> CREATE SCRIPT full_backup 
+{     
+  BACKUP DATABASE PLUS ARCHIVELOG;
+}
+
+--to create a global script
+RMAN> CREATE GLOBAL SCRIPT global_full_backup 
+{     
+  BACKUP DATABASE PLUS ARCHIVELOG;
+  DELETE OBSOLETE;
+}
+
+--to create a script by reading its contents from a text file
+$ vi backup1.txt
+
+{     
+  BACKUP DATABASE PLUS ARCHIVELOG;
+  DELETE OBSOLETE;
+}
+
+RMAN> CREATE SCRIPT from_file 
+  FROM FILE '/home/oracle/backup1.txt';
+
+--to list stored script names
+RMAN> LIST SCRIPT NAMES;
+
+--to list only global script names
+RMAN> LIST GLOBAL SCRIPT NAMES;
+
+--to list the names of all scripts stored in the current recovery catalog
+RMAN> LIST ALL SCRIPT NAMES;
+
+--to print stored scripts
+RMAN> PRINT SCRIPT full_backup;
+
+--to replace a stored script
+RMAN> REPLACE SCRIPT full_backup 
+{
+  BACKUP DATABASE PLUS ARCHIVELOG;
+  DELETE OBSOLETE;
+}
+
+--to print stored scripts
+RMAN> PRINT SCRIPT global_full_backup;
+
+--to update global scripts by adding a descriptive comment
+RMAN> REPLACE GLOBAL SCRIPT global_full_backup 
+COMMENT 'A script for full backup to be used with any database'
+{
+  BACKUP AS BACKUPSET DATABASE PLUS ARCHIVELOG;
+}
+
+RMAN> LIST SCRIPT NAMES;
+
+--to execute a stored script
+RMAN> RUN 
+{ 
+  EXECUTE SCRIPT full_backup; 
+}
+
+--to run a command file
+$ vi /home/oracle/backup1.txt
+
+RUN
+{     
+  BACKUP DATABASE PLUS ARCHIVELOG;
+  DELETE OBSOLETE;
+}
+
+RMAN> @/home/oracle/backup1.txt
+
+--to send the contents of a script to a file
+RMAN> PRINT SCRIPT full_backup 
+  TO FILE '/home/oracle/backup2.txt';
+
+$ cat backup2.txt
+
+--to list stored script names
+RMAN> LIST SCRIPT NAMES;
+
+--to delete a stored script
+RMAN> DELETE SCRIPT 'full_backup';
+
+--to delete a global stored script
+RMAN> DELETE GLOBAL SCRIPT 'global_full_backup';
+
+
+########################################################
+--DO NOT RUN THEM AT THIS STAGE OF THE COURSE
+
+--To drop a recovery catalog schema:
+
+--connect to a target database and recovery catalog. Connect to the recovery catalog as the owner of the catalog schema to be dropped.
+$ rman target sys/oracle@primary catalog rcatown/rcatown@rcatpdb
+
+--Run the DROP CATALOG command:
+RMAN> DROP CATALOG;
+
+--Run the DROP CATALOG command again to confirm:
+RMAN> DROP CATALOG;
+########################################################
+

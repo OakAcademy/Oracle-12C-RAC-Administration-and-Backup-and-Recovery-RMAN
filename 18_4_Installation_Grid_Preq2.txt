@@ -1,0 +1,121 @@
+###
+Installation in this document is only for  exercises of this course.
+Do not use this documentation for installation of system that will be used actively.
+###
+
+
+--Oracle Clusterware Installation Prerequisites. Part 2
+
+--Create the directory in which the Oracle software will be installed.
+$ mkdir -p /u01/app/12.2.0.1/grid
+$ mkdir -p /u01/app/oracle/product/12.2.0.1/db_1
+$ chown -R oracle:oinstall /u01
+$ chmod -R 775 /u01/
+
+--Add oracle account to vboxsf groups. 
+--The vboxsf group was created by VirtualBox Guest Additions and will allow oracle user access folders in the Host OS
+$ usermod -G vboxsf oracle
+
+--Reset oracle user password to oracle:
+$ passwd oracle
+Changing password for user oracle.
+New password: 
+BAD PASSWORD: it is based on a dictionary word
+BAD PASSWORD: is too simple
+Retype new password: 
+passwd: all authentication tokens updated successfully.
+
+--Disable secure linux by editing the "/etc/selinux/config" file, making sure the SELINUX flag is set as follows.
+$ SELINUX=disabled
+
+--Deconfigure NTP so the Oracle Cluster Time Synchronization Service (ctssd) can synchronize the times of the RAC nodes.
+$ service ntpd stop
+Shutting down ntpd:                                        [FAILED]
+$ chkconfig ntpd off
+$ mv /etc/ntp.conf /etc/ntp.conf.orig
+$ rm /var/run/ntpd.pid
+
+--Cleanup YUM repositories
+$ yum clean all
+
+--Check file system usage
+$ df -k
+
+--Log in as the "oracle" user and add the following lines at the end of the "/home/oracle/.bash_profile" file.
+# Oracle Settings
+export TMP=/tmp
+export TMPDIR=$TMP
+
+export ORACLE_HOSTNAME=rac1.localdomain
+export ORACLE_UNQNAME=RACDB
+export ORACLE_BASE=/u01/app/oracle
+export GRID_HOME=/u01/app/12.2.0.1/grid
+export DB_HOME=$ORACLE_BASE/product/12.2.0.1/db_1
+export ORACLE_HOME=$DB_HOME
+export ORACLE_SID=racdb1
+export ORACLE_TERM=xterm
+export BASE_PATH=/usr/sbin:$PATH
+export PATH=$ORACLE_HOME/bin:$BASE_PATH
+
+export LD_LIBRARY_PATH=$ORACLE_HOME/lib:/lib:/usr/lib
+export CLASSPATH=$ORACLE_HOME/JRE:$ORACLE_HOME/jlib:$ORACLE_HOME/rdbms/jlib
+
+--Create a file called "/home/oracle/grid_env" with the following contents.
+export ORACLE_SID=+ASM1
+export ORACLE_HOME=$GRID_HOME
+export PATH=$ORACLE_HOME/bin:$BASE_PATH
+
+export LD_LIBRARY_PATH=$ORACLE_HOME/lib:/lib:/usr/lib
+export CLASSPATH=$ORACLE_HOME/JRE:$ORACLE_HOME/jlib:$ORACLE_HOME/rdbms/jlib
+
+--Create a file called "/home/oracle/db_env" with the following contents.
+export ORACLE_SID=racdb1
+export ORACLE_HOME=$DB_HOME
+export PATH=$ORACLE_HOME/bin:$BASE_PATH
+
+export LD_LIBRARY_PATH=$ORACLE_HOME/lib:/lib:/usr/lib
+export CLASSPATH=$ORACLE_HOME/JRE:$ORACLE_HOME/jlib:$ORACLE_HOME/rdbms/jlib
+
+
+--Network Setup
+
+--All actions in this section must be performed by the root user.
+
+--Edit "/etc/hosts" file by appending the following information
+# Private
+192.168.10.1    rac1-priv.localdomain   rac1-priv
+192.168.10.2    rac2-priv.localdomain   rac2-priv
+
+# Public
+192.168.56.71    rac1.localdomain        rac1
+192.168.56.72    rac2.localdomain        rac2
+
+# Virtual
+192.168.56.81    rac1-vip.localdomain    rac1-vip
+192.168.56.82    rac2-vip.localdomain    rac2-vip
+
+# SCAN
+192.168.56.91    rac-scan.localdomain    rac-scan
+192.168.56.92    rac-scan.localdomain    rac-scan
+192.168.56.93    rac-scan.localdomain    rac-scan
+
+
+--Disable the firewall
+System | Administration | Firewall
+Click on "Disable" icon, then on "Apply".
+
+
+--Creating Shared Folders
+
+Shutdown VM 
+In VirtualBox Manager click on "Shared Folders" link in the right-hand pane. 
+Add shared folder by pressing "plus" icon. 
+Then select path to the location of oracle software
+Folder Name: oracle_sw
+Check both boxes "Read-only" and "Auto-mount"
+Mount Point: /media
+
+--Restart VM and login as oracle user.
+$ cd /media
+$ ls -ltr
+

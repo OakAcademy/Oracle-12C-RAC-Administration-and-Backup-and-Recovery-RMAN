@@ -1,0 +1,43 @@
+
+--Create the directories in which the Oracle software will be installed on rac2
+$ mkdir -p /u01/app/12.2.0.1/grid
+$ mkdir -p /u01/app/oracle/product/12.2.0.1/db_1
+
+
+--set environment to grid
+$ . grid_env
+
+--Verify the integrity of the cluster on rac1
+$ cd /u01/app/12.2.0.1/grid/bin
+$ cluvfy stage -pre nodeadd -n rac2 -fixup
+
+
+--Navigate to the Grid_home/addnode directory on rac1 and run the addnode.sh script as the user oracle
+$ cd /u01/app/12.2.0.1/grid/addnode
+$ . addnode.sh
+
+
+--When prompted, run the root.sh script as root on rac2
+$ /u01/app/12.2.0.1/grid/root.sh
+
+
+--Navigate to the Oracle_home/addnode directory on rac1 and run the addnode.sh script as oracle
+$ cd /u01/app/oracle/product/12.2.0.1/db_1/addnode
+$ ./addnode.sh "CLUSTER_NEW_NODES={rac2}"
+
+
+--When prompted, run the root.sh script on rac2 as root
+$ /u01/app/oracle/product/12.2.0.1/db_1/root.sh
+
+
+--Run the following CVU command as oracle to check cluster integrity.
+--This command verifies that any number of specified nodes has been successfully added to the cluster at the network, shared storage, and clusterware levels:
+$ cluvfy stage -post nodeadd -n rac2
+
+
+--Add instance 
+$ srvctl add instance -db racdb -instance racdb2 -node rac2
+
+--status of database
+$ srvctl status database -db racdb
+

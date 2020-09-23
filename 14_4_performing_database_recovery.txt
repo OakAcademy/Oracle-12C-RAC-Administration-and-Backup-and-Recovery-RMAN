@@ -1,0 +1,66 @@
+############################################
+--if it is not running already then start listener
+$ lsnrctl start
+
+--if it is not started already, startup database
+$ sqlplus / as sysdba
+
+SQL> startup
+############################################
+
+
+$ rman target sys/oracle@primary catalog rcatown/rcatown@rcatpdb
+
+--previewing backups
+RMAN> RESTORE DATABASE PREVIEW SUMMARY;
+
+RMAN> RESTORE DATABASE PREVIEW;
+
+
+--identifying data files with RMAN
+RMAN> REPORT SCHEMA;
+
+--creating failure
+$ rm &file_name&
+
+
+--identifying failure
+RMAN> LIST FAILURE;
+
+RMAN> VALIDATE DATABASE;
+
+
+--Performing Complete Recovery of a Whole CDB
+
+--start up the database mount mode
+SQL> SHUTDOWN IMMEDIATE;
+
+SQL> STARTUP MOUNT;
+
+
+--restore and recover the database
+$ rman target sys/oracle@primary catalog rcatown/rcatown@rcatpdb
+
+--manually allocate channels and restore all data files to their original locations
+RMAN> RUN
+{
+  ALLOCATE CHANNEL c1 DEVICE TYPE DISK;
+  RESTORE DATABASE;
+  RECOVER DATABASE;
+}
+
+###################################################
+--to restore some data files to new locations
+RUN
+{  
+  SET NEWNAME FOR DATAFILE 2 TO '/disk2/df2.dbf';
+  SET NEWNAME FOR DATAFILE 3 TO '/disk2/df3.dbf';
+  SET NEWNAME FOR DATAFILE 4 TO '/disk2/df4.dbf';
+  RESTORE DATABASE;
+  SWITCH DATAFILE ALL;
+  RECOVER DATABASE;
+}
+###################################################
+
+--if media recovery was successful, open the database
+SQL> ALTER DATABASE OPEN;

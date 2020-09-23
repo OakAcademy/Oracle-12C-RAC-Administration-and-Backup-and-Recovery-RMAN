@@ -1,0 +1,26 @@
+
+--run database configuration assistant
+$ dbca
+
+--Database Operation
+Create a database
+
+--Creation Mode
+Typical configuration
+
+Global database name: rmancat
+Storage type: (default)
+Database files location: (default)
+Fast Recovery Area(FRA): (default)
+Database character set: (default)
+Administrative password: (type password)
+Confirm password: (type password)
+Create as Container database
+Pluggable database name: rcatpdb
+
+--Summary
+Finish
+
+--Finish
+Close
+

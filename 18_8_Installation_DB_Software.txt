@@ -1,0 +1,35 @@
+###
+Installation in this document is only for  exercises of this course.
+Do not use this documentation for installation of system that will be used actively.
+###
+
+
+--Install the Database Software
+
+$ . db_env
+$ cd /media/database
+$ ./runInstaller
+
+Uncheck the security updates checkbox
+
+Install database software only
+
+Oracle Real Application Clusters database installation
+
+Make sure both nodes are selected
+
+Enterprise Edition
+
+Oracle base: /u01/app/oracle
+Software location: /u01/app/oracle/product/12.2.0.1/db_1
+
+Select "dba" group.
+
+Click the "Fix & Check Again" button first if it is not passive
+Check the "Ignore All" checkbox
+
+Install
+
+When prompted, run the configuration script on each node
+
+Close

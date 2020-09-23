@@ -1,0 +1,56 @@
+############################################
+--if it is not running already then start listener
+$ lsnrctl start
+
+--if it is not started already, startup database
+$ sqlplus / as sysdba
+
+SQL> startup
+############################################
+
+
+--use VALIDATE to check database files and backups
+
+$ rman target sys/oracle@primary catalog rcatown/rcatown@rcatpdb
+
+--to validate all data files, control files and server parameter file(whole CDB)
+RMAN> VALIDATE DATABASE;
+
+--to validate a particular backup set
+RMAN> LIST BACKUP;
+
+RMAN> VALIDATE BACKUPSET &bs_key&;
+
+--to check individual data blocks within a data file for corruption
+RMAN> VALIDATE DATAFILE 20 BLOCK 10;
+
+
+--To validate files with the BACKUP VALIDATE command
+
+--to validate that all database files and archived logs can be backed up. This command checks for physical corruptions only.
+RMAN> BACKUP VALIDATE 
+  DATABASE 
+  ARCHIVELOG ALL;
+
+--to check for logical corruptions in addition to physical corruptions
+RMAN> BACKUP VALIDATE 
+  CHECK LOGICAL 
+  DATABASE 
+  ARCHIVELOG ALL;
+
+
+--To validate backups with the RESTORE command
+
+--to test whether RMAN can restore a specific file or set of files from a backup
+RMAN> RESTORE DATABASE VALIDATE;
+
+RMAN> RESTORE ARCHIVELOG ALL VALIDATE;
+
+
+--To validate the root:
+RMAN> VALIDATE DATABASE ROOT;
+
+
+--to validate pdb
+RMAN> VALIDATE PLUGGABLE DATABASE pdb1;
+

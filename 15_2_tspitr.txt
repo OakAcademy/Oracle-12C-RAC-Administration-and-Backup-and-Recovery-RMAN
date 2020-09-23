@@ -1,0 +1,116 @@
+############################################
+--if it is not running already then start listener
+$ lsnrctl start
+
+--if it is not started already, startup database
+$ sqlplus / as sysdba
+
+SQL> startup
+############################################
+
+
+--Table Point In Time Recovery
+
+--create directory for auxiliary usage
+$ mkdir /home/oracle/aux_tspitr
+
+--find row count of test table
+$ sqlplus mytest/test_123@pdb1
+
+SQL> select count(*) from test_tab1;
+COUNT:
+
+--specify the current scn
+SQL> select current_scn from v$database;
+CURRENT_SCN:
+
+--delete some data from test table
+SQL> delete from test_tab1 where id=3;
+
+SQL> commit;
+
+--check the row count again
+SQL> select count(*) from test_tab1;
+COUNT:
+
+--recover table to current scn which is a time before delete
+$ rman target sys/oracle@primary catalog rcatown/rcatown@rcatpdb
+
+RMAN> RECOVER TABLE mytest.test_tab1 OF PLUGGABLE DATABASE pdb1
+  UNTIL SCN &current_scn&
+  AUXILIARY DESTINATION '/home/oracle/aux_tspitr'  
+  REMAP TABLE 'MYTEST'.'TEST_TAB1':'TEST_TAB1_PREV';
+
+--check row count of previous test table
+SQL> select count(*) from test_tab1_prev;
+
+
+--Switching to a Data File Copy
+
+--create a image copy for datafile 20
+RMAN> BACKUP AS COPY 
+  DATAFILE 20 
+  FORMAT '/home/oracle/backups/tbs_data2.dbf';
+
+--find the name of datafile 20
+SQL> col name format a50
+
+SQL> select df.file#,df.name
+from v$datafile df, v$tablespace ts 
+where df.ts#=ts.ts# and ts.name='TBS_DATA';
+
+--remove datafile 20
+$ rm &file_name&
+
+--to take the datafile requiring recovery offline
+$ sqlplus sys/oracle@pdb1 as sysdba
+
+SQL> ALTER DATABASE DATAFILE 20 OFFLINE;
+
+--to switch the offline data file to the copy
+RMAN> SWITCH DATAFILE 20 TO COPY;
+
+--to recover the data file
+RMAN> RECOVER DATAFILE 20;
+
+--bring the recovered data file back online
+SQL> ALTER DATABASE DATAFILE 20 ONLINE;
+
+--check the name of datafiles
+SQL> col name format a50
+
+SQL> select df.file#,df.name
+from v$datafile df, v$tablespace ts 
+where df.ts#=ts.ts# and ts.name='TBS_DATA';
+
+
+--tablespace point in time recovery(TSPITR)
+
+--validate the restore of tablespace
+RMAN> RESTORE TABLESPACE pdb1:tbs_data VALIDATE;
+
+RMAN> RESTORE TABLESPACE pdb1:tbs_data PREVIEW;
+
+--drop the tablespace
+SQL> DROP TABLESPACE TBS_DATA INCLUDING CONTENTS AND DATAFILES;
+
+--recover the tablespace point in time before delete command
+RMAN> RECOVER TABLESPACE pdb1:tbs_data 
+  UNTIL SCN &current_scn&
+  AUXILIARY DESTINATION '/home/oracle/aux_tspitr';
+
+--bring the recovered tablespace online
+SQL> ALTER TABLESPACE tbs_data ONLINE;
+
+--check the row count of test table
+$ sqlplus mytest/test_123@pdb1
+
+SQL> select count(*) from test_tab1;
+
+--check the name of datafiles
+SQL> col name format a50
+
+SQL> select df.file#,df.name
+from v$datafile df, v$tablespace ts 
+where df.ts#=ts.ts# and ts.name='TBS_DATA';
+

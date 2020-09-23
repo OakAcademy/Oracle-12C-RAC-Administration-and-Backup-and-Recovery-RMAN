@@ -1,0 +1,112 @@
+###
+Installation in this document is only for  exercises of this course.
+Do not use this documentation for installation of system that will be used actively.
+###
+
+--Guest operating system installation
+
+Settings
+Storage
+IDE Controller
+Attributes
+Click DVD icon
+V37084-01.iso
+
+start vm
+
+skip
+
+ok
+
+select language
+select keyboard language
+
+Hostname : rac1.localdomain
+
+Configure Network
+
+Edit System Eth0
+Connect automatically
+IPv4 Settings
+Manual
+Address: 192.168.56.71
+Netmask: 255.255.255.0
+Gateway: 0.0.0.0
+
+Edit System Eth1
+Connect automatically
+IPv4 Settings
+Manual
+Address: 192.168.10.1
+Netmask: 255.255.255.0
+Gateway: 0.0.0.0
+
+Edit System Eth2
+Connect automatically
+Available to all users
+IPv4 Settings
+Automatic
+
+Use All Space
+Review and modify partitioning layout
+
+change lv_root according to swap [lv_root + lv_swap = vg_rac1]
+lv_swap: 4096 MB
+
+Database Server
+Oracle Linux Server
+Customize now
+
+In the Customization screen 
+select "Databases" and uncheck all items; 
+select "Desktops" and check "Desktop" and "Graphical Administration Tools"; 
+then press Next and finish installation. Reboot.
+
+--This part will not be in video. Please follow document and apply commands.
+--After Welcome Page press only forward except the options below.
+Yes, I agree to the License Agreement
+No, I prefer to register at later time.
+No thanks, I'll connect later
+
+--Check internet access
+--Open Terminal Window
+Applications | System Tools | Terminal
+$ ping yahoo.com
+
+--If ping doesn't work, troubleshoot the problem using 'ifconfig' command and making changes in 
+--Network Connections (Linux desktop Main menu | System | Preferences | Network Connections). 
+--If you made changes in Network Connections, restart interface by rebooting VM or running these two commands:
+$ ifdown eth2
+$ ifup eth2 
+
+--Install Guest Additions
+
+Login as root
+--Open Terminal Window
+Applications | System Tools | Terminal
+
+--if you see a message that says "another app is currently holding the yum lock" then
+--run "kill pid_number" and then re-run yum command
+$ yum install kernel-devel -y
+$ yum install kernel-uek -y
+$ yum install kernel-uek-devel -y
+$ yum install gcc -y
+
+Reboot VM
+
+In the window menu select Devices | Install Guest Additions
+Click OK 
+Click RUN
+
+Shutdown VM. 
+In VirtualBox Manager window select "General", "Advanced", "Shared Clipboard" is set to "Bidirectional". 
+Restart the machine. 
+--End of videoless part.
+
+--You can find this in the video again
+After opening of machine
+Applications | System Tools 
+Right Click Terminal
+Add this launcher to desktop
+
+

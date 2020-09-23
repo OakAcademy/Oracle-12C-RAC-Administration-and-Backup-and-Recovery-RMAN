@@ -1,0 +1,52 @@
+############################################
+--if it is not running already then start listener
+$ lsnrctl start
+
+--if it is not started already, startup database
+$ sqlplus / as sysdba
+
+SQL> startup
+############################################
+
+
+--validate the ability of restore tablespace operation
+$ rman target sys/oracle@primary catalog rcatown/rcatown@rcatpdb
+
+RMAN> RESTORE TABLESPACE pdb1:tbs_indx VALIDATE;
+
+--create a datafile corruption
+$ sqlplus sys/oracle@pdb1 as sysdba
+
+SQL> col name format a50
+
+SQL> select df.file#,df.name
+from v$datafile df, v$tablespace ts 
+where df.ts#=ts.ts# and ts.name='TBS_INDX';
+
+--paste the entry to file
+$ vi &file_name&
+
+corruption test
+
+
+--check for failure
+RMAN> LIST FAILURE;
+
+RMAN> VALIDATE TABLESPACE pdb1:tbs_indx;
+
+
+--Performing Complete Recovery of a Tablespace
+
+--If the database is open, then take the tablespace requiring recovery offline
+$ sqlplus sys/oracle@pdb1 as sysdba
+
+SQL> ALTER TABLESPACE tbs_indx OFFLINE;
+
+--Restore and recover the tablespace
+RMAN> RESTORE TABLESPACE pdb1:tbs_indx;
+
+RMAN> RECOVER TABLESPACE pdb1:tbs_indx;
+
+--to bring the recovered tablespace back online.
+SQL> ALTER TABLESPACE tbs_indx ONLINE;
+

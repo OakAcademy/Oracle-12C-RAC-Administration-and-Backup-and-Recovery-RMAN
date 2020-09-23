@@ -1,0 +1,79 @@
+###
+Installation in this document is only for  exercises of this course.
+Do not use this documentation for installation of system that will be used actively.
+###
+
+
+--Create Shared Disks
+
+--Shut down both virtual machines. 
+--To create a new virtual disk, change its attribute to Shareable and add to both VMs. Select either rac1 or rac2 VM.
+--Click on "Storage" link. Select "SATA Controller" and click on "Add Hard Disk" icon. 
+
+Create new disk
+
+VDI
+
+Fixed Size
+
+--Change the name and location of this disk. Place it in "...\VirtualBox VMs" with name "rac_shared_disk1.vdi" 
+50 GB
+
+--Open VirtualBox Manager Window
+File | Virtual Media Manager
+Select new disk. 
+Change Type from Normal to Shareable.Click Apply.
+
+--Attach this existing disk to the other VM using "Storage" page. 
+Click on "Storage" link. Select "SATA Controller" and click on "Add Hard Disk" icon. 
+Select "Choose existing disk" option.
+
+--Start either of the machines and log in as root
+$ ls /dev/sd*
+
+--Use the "fdisk" command to partition the new disk "sdb".
+$ fdisk /dev/sdb
+Device contains neither a valid DOS partition table, nor Sun, SGI or OSF disklabel
+Building a new DOS disklabel with disk identifier 0xd724aa83.
+Changes will remain in memory only, until you decide to write them.
+After that, of course, the previous content won't be recoverable.
+
+Warning: invalid flag 0x0000 of partition table 4 will be corrected by w(rite)
+
+WARNING: DOS-compatible mode is deprecated. It's strongly recommended to
+         switch off the mode (command 'c') and change display units to
+         sectors (command 'u').
+
+Command (m for help): n
+Command action
+   e   extended
+   p   primary partition (1-4)
+p
+Partition number (1-4): 1
+First cylinder (1-391, default 1): 
+Using default value 1
+Last cylinder, +cylinders or +size{K,M,G} (1-391, default 391): 
+Using default value 391
+
+Command (m for help): w
+The partition table has been altered!
+
+Calling ioctl() to re-read partition table.
+Syncing disks.
+$
+
+$ ls /dev/sd*
+
+
+--Create ASMLib Disk
+
+$ oracleasm createdisk DISK1 /dev/sdb1
+
+--Run the "scandisks" command to refresh the ASMLib disk configuration.
+$ oracleasm scandisks
+
+--Control the disk if it is visible to ASM using the "listdisks" command.
+$ oracleasm listdisks
+
+--Start another VM and log in as root. Check that the shared disk is visible to ASM using the "listdisks" command.
+$ oracleasm listdisks

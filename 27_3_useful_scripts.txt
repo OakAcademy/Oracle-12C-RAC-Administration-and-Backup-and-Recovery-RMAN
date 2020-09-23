@@ -1,0 +1,161 @@
+
+1.Check active sessions
+
+SQL> SET LINESIZE 500
+SET PAGESIZE 1000
+
+SQL> COLUMN username FORMAT A30
+COLUMN osuser FORMAT A20
+COLUMN spid FORMAT A10
+COLUMN service_name FORMAT A15
+COLUMN module FORMAT A45
+COLUMN machine FORMAT A30
+COLUMN logon_time FORMAT A20
+
+SQL> SELECT NVL(s.username, '(oracle)') AS username,
+       s.osuser,
+       s.sid,
+       s.serial#,
+       p.spid,
+       s.lockwait,
+       s.status,
+       s.module,
+       s.machine,
+       s.program,
+       TO_CHAR(s.logon_Time,'DD-MON-YYYY HH24:MI:SS') AS logon_time,
+       s.last_call_et AS last_call_et_secs
+FROM   v$session s,
+       v$process p
+WHERE  s.paddr  = p.addr
+AND    s.status = 'ACTIVE'
+ORDER BY s.username, s.osuser;
+
+
+2. Check long operations
+
+SQL> COLUMN sid FORMAT 999
+COLUMN serial# FORMAT 9999999
+COLUMN machine FORMAT A30
+COLUMN progress_pct FORMAT 99999999.00
+COLUMN elapsed FORMAT A10
+COLUMN remaining FORMAT A10
+
+SQL> SELECT s.sid,
+       s.serial#,
+       s.machine,
+       ROUND(sl.elapsed_seconds/60) || ':' || MOD(sl.elapsed_seconds,60) elapsed,
+       ROUND(sl.time_remaining/60) || ':' || MOD(sl.time_remaining,60) remaining,
+       ROUND(sl.sofar/sl.totalwork*100, 2) progress_pct
+FROM   v$session s,
+       v$session_longops sl
+WHERE  s.sid     = sl.sid
+AND    s.serial# = sl.serial#;
+
+
+3.Check the number of log switch per hour 
+
+SQL> SET PAGESIZE 90
+SET LINESIZE 150
+
+SQL> set heading on
+column "00:00" format 9999
+column "01:00" format 9999
+column "02:00" format 9999
+column "03:00" format 9999
+column "04:00" format 9999
+column "05:00" format 9999
+column "06:00" format 9999
+column "07:00" format 9999
+column "08:00" format 9999
+column "09:00" format 9999
+column "10:00" format 9999
+column "11:00" format 9999
+column "12:00" format 9999
+column "13:00" format 9999
+column "14:00" format 9999
+column "15:00" format 9999
+column "16:00" format 9999
+column "17:00" format 9999
+column "18:00" format 9999
+column "19:00" format 9999
+column "20:00" format 9999
+column "21:00" format 9999
+column "22:00" format 9999
+column "23:00" format 9999
+
+SQL> SELECT * FROM (
+SELECT * FROM (
+SELECT TO_CHAR(FIRST_TIME, 'DD/MM') AS "DAY"
+/*, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '00', 1, 0), '99')) "00:00"
+, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '01', 1, 0), '99')) "01:00"
+, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '02', 1, 0), '99')) "02:00"
+, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '03', 1, 0), '99')) "03:00"
+, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '04', 1, 0), '99')) "04:00"
+, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '05', 1, 0), '99')) "05:00"
+, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '06', 1, 0), '99')) "06:00"
+, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '07', 1, 0), '99')) "07:00"*/
+, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '08', 1, 0), '99')) "08:00"
+, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '09', 1, 0), '99')) "09:00"
+, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '10', 1, 0), '99')) "10:00"
+, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '11', 1, 0), '99')) "11:00"
+, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '12', 1, 0), '99')) "12:00"
+, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '13', 1, 0), '99')) "13:00"
+, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '14', 1, 0), '99')) "14:00"
+, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '15', 1, 0), '99')) "15:00"
+, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '16', 1, 0), '99')) "16:00"
+, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '17', 1, 0), '99')) "17:00"
+, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '18', 1, 0), '99')) "18:00"
+, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '19', 1, 0), '99')) "19:00"
+/*, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '20', 1, 0), '99')) "20:00"
+, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '21', 1, 0), '99')) "21:00"
+, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '22', 1, 0), '99')) "22:00"
+, SUM(TO_NUMBER(DECODE(TO_CHAR(FIRST_TIME, 'HH24'), '23', 1, 0), '99')) "23:00"*/
+    FROM V$LOG_HISTORY
+       WHERE extract(year FROM FIRST_TIME) = extract(year FROM sysdate)
+          GROUP BY TO_CHAR(FIRST_TIME, 'DD/MM')
+  ) ORDER BY TO_DATE(extract(year FROM sysdate) || DAY, 'YYYY DD/MM') DESC
+  ) WHERE ROWNUM <8;
+
+
+4.Check predicted I/O requirement for the default buffer pool for various cache sizes
+
+SQL> COLUMN size_for_estimate FORMAT 999,999,999,999 heading 'Cache Size (MB)'
+COLUMN buffers_for_estimate FORMAT 999,999,999 heading 'Buffers'
+COLUMN estd_physical_read_factor FORMAT 999.90 heading 'Estd Phys|Read Factor'
+COLUMN estd_physical_reads FORMAT 999,999,999 heading 'Estd Phys| Reads'
+
+SQL> SELECT size_for_estimate, buffers_for_estimate, estd_physical_read_factor,
+       estd_physical_reads
+  FROM V$DB_CACHE_ADVICE
+ WHERE name = 'DEFAULT'
+   AND block_size = (SELECT value FROM V$PARAMETER WHERE name = 'db_block_size')
+   AND advice_status = 'ON';
+
+
+5.Check buffer cache hit ratio
+
+SQL> SELECT Sum(Decode(a.name, 'consistent gets', a.value, 0)) "Consistent Gets",
+       Sum(Decode(a.name, 'db block gets', a.value, 0)) "DB Block Gets",
+       Sum(Decode(a.name, 'physical reads', a.value, 0)) "Physical Reads",
+       Round(((Sum(Decode(a.name, 'consistent gets', a.value, 0)) +
+         Sum(Decode(a.name, 'db block gets', a.value, 0)) -
+         Sum(Decode(a.name, 'physical reads', a.value, 0))  )/
+           (Sum(Decode(a.name, 'consistent gets', a.value, 0)) +
+             Sum(Decode(a.name, 'db block gets', a.value, 0))))
+             *100,2) "Hit Ratio %"
+FROM   v$sysstat a;
+
+
+6.Check the usage of SGA
+
+SQL> show sga
+
+SQL> show parameter sga_max_size
+
+SQL> select sum(bytes)/1024/1024 " SGA size used in MB" from v$sgastat where name!='free memory';
+
+
+
+
+
+ 

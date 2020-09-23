@@ -1,0 +1,60 @@
+###
+Installation in this document is only for  exercises of this course.
+Do not use this documentation for installation of system that will be used actively.
+###
+
+
+DOWNLOADS
+
+VirtualBox
+https://www.virtualbox.org/
+
+Oracle Linux
+https://www.oracle.com/linux/
+Oracle Linux 6.4.0.0.0	
+
+Oracle Grid Infrastructure and Database
+https://www.oracle.com/technetwork/database/enterprise-edition/downloads/oracle12c-linux-12201-3608234.html
+linuxx64_12201_database.zip
+linuxx64_12201_grid_home.zip
+
+
+--Create virtual machine
+
+Name : rac1
+OS Type
+Operating System : Linux
+Version : Oracle(64-bit)
+
+RAM : 4096 MB
+
+Create a virtual hard disk now
+
+VDI(Virtual Disk Image)
+
+Dynamically allocated
+
+rac1
+50 GB
+
+
+--Settings of network adapters
+
+Network Settings
+
+Adapter 1
+Enabled Network Adapter
+Internal Network
+pubnet
+
+Adapter 2
+Enabled Network Adapter
+Internal Network
+privnet
+
+Adapter 3
+Enabled Network Adapter
+Bridged Adapter
+Intel(R) ....
+
+

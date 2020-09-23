@@ -1,0 +1,72 @@
+############################################
+--if it is not running already then start listener
+$ lsnrctl start
+
+--if it is not started already, startup database
+$ sqlplus / as sysdba
+
+SQL> startup
+############################################
+
+
+--backup tablespace ts_data
+$ rman target sys/oracle@primary catalog rcatown/rcatown@rcatpdb
+
+RMAN> BACKUP TABLESPACE pdb1:tbs_data TAG 'repair_test';
+
+--remove a datafile to create a failure
+SQL> sqlplus / as sysdba
+
+SQL> col name format a50
+
+SQL> select df.file#,df.name
+from v$datafile df, v$tablespace ts 
+where df.ts#=ts.ts# and ts.name='TBS_DATA';
+
+$ rm &file_name&
+
+
+--Basic Steps of Diagnosing and Repairing Failures
+
+--List failures
+RMAN> LIST FAILURE;
+
+--to list detailed information about a specified failure
+RMAN> LIST FAILURE &failure_id& DETAIL;
+
+--listing a subset of failures
+RMAN> LIST FAILURE LOW;
+
+RMAN> LIST FAILURE EXCLUDE FAILURE &failure_id&;
+
+
+--validate the database
+RMAN> VALIDATE DATABASE;
+
+
+--Determine repair options
+RMAN> ADVISE FAILURE;
+
+--to determine repair options for a subset of failures
+RMAN> ADVISE FAILURE &failure_id&;
+
+
+--to see repair commands
+RMAN> REPAIR FAILURE PREVIEW;
+
+--to fix failure automatically
+RMAN> REPAIR FAILURE;
+
+
+--to confirm the failure is repaired
+RMAN> LIST FAILURE;
+
+--to list closed failures
+RMAN> LIST FAILURE CLOSED;
+
+--to change the priority of a failure from HIGH to LOW
+RMAN> CHANGE FAILURE &failure_id& PRIORITY LOW;
+
+-- to view the change
+RMAN> LIST FAILURE ALL;
+

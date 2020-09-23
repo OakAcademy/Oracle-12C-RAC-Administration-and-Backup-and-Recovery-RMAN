@@ -1,0 +1,231 @@
+############################################
+--if it is not running already then start listener
+$ lsnrctl start
+
+--if it is not started already, startup database
+$ sqlplus / as sysdba
+
+SQL> startup
+############################################
+
+
+--Maintaining the Fast Recovery Area
+
+--Fast Recovery Area Space Consumption
+$ sqlplus / as sysdba
+
+SQL> SELECT SPACE_LIMIT/1024/1024 AS SPACE_LIMIT_MB, 
+  SPACE_USED/1024/1024 SPACE_USED_MB, 
+  SPACE_RECLAIMABLE/1024/1024 SPACE_RECLAIMABLE_MB, 
+  NUMBER_OF_FILES 
+  FROM V$RECOVERY_FILE_DEST;
+
+SQL> SELECT NAME FROM V$RECOVERY_FILE_DEST;
+
+--Fast Recovery Area Space Usage Based on Type of Files
+SQL> SELECT FILE_TYPE, 
+  NUMBER_OF_FILES, 
+  PERCENT_SPACE_USED AS PER_USED,
+  PERCENT_SPACE_RECLAIMABLE AS PER_RECLAIM
+  FROM V$RECOVERY_AREA_USAGE;
+
+#############
+--Changing the Fast Recovery Area to a New Location
+ALTER SYSTEM SET DB_RECOVERY_FILE_DEST='/home/oracle/fast_rec_area' SCOPE=BOTH SID='*';
+
+--Disabling the Fast Recovery Area
+ALTER SYSTEM SET DB_RECOVERY_FILE_DEST='' SCOPE=BOTH SID='*';
+#############
+
+
+--Updating the RMAN Repository
+
+$ rman target sys/oracle@primary catalog rcatown/rcatown@rcatpdb
+
+--Crosschecking All Backups and Copies
+RMAN> CROSSCHECK BACKUP;
+
+RMAN> CROSSCHECK COPY;
+
+--Crosschecking Specific Backup Sets and Copies
+RMAN> CROSSCHECK COPY OF DATABASE;
+
+--to identify the backups to be checked
+RMAN> LIST BACKUP;
+
+RMAN> CROSSCHECK BACKUPSET &BS_KEY&;
+
+RMAN> CROSSCHECK BACKUPPIECE TAG 'PERMANENT';
+
+RMAN> CROSSCHECK BACKUP OF ARCHIVELOG ALL SPFILE;
+
+--to find file name
+SQL> col name format a50
+
+SQL> select df.file#,df.name
+from v$datafile df, v$tablespace ts 
+where df.ts#=ts.ts# and ts.name='TBS_DATA';
+
+RMAN> CROSSCHECK BACKUP OF DATAFILE '&file_name&';
+
+--check whether the copy of control file exists
+$ cd /home/oracle/backups
+
+$ ls -ltr
+
+--create copy of control file if it isn't exists
+RMAN> BACKUP AS COPY 
+  CURRENT CONTROLFILE 
+  FORMAT '/home/oracle/backups/control01.ctl';
+
+RMAN> CROSSCHECK CONTROLFILECOPY '/home/oracle/backups/control01.ctl';
+
+RMAN> CROSSCHECK DATAFILECOPY ALL;
+
+
+--Updating a Backup to Status AVAILABLE or UNAVAILABLE
+
+--to determine the availability status of RMAN backups
+RMAN> LIST BACKUP TAG 'KEEP_ONE_YEAR';
+
+--to update status of backups in the RMAN repository
+RMAN> CHANGE BACKUPSET &BS_KEY& UNAVAILABLE;
+
+RMAN> CHANGE BACKUP OF SPFILE TAG 'KEEP_ONE_YEAR' UNAVAILABLE;
+
+RMAN> CHANGE BACKUP TAG 'KEEP_ONE_YEAR' AVAILABLE;
+
+RMAN> LIST DATAFILECOPY '/home/oracle/backups/df_data_02.dbf';
+
+RMAN> CHANGE DATAFILECOPY '/home/oracle/backups/df_data_02.dbf' UNAVAILABLE;
+
+RMAN> CHANGE DATAFILECOPY '/home/oracle/backups/df_data_02.dbf' AVAILABLE;
+
+
+--Changing the Status of an Archival Backup
+
+--to list all backups
+RMAN> LIST BACKUP TAG 'PERMANENT';
+
+--to delete keep attributes for backup
+RMAN> CHANGE BACKUP TAG 'PERMANENT' NOKEEP;
+
+--to make a data file copy exempt from the retention policy for 180 days:
+RMAN> CHANGE DATAFILECOPY '/home/oracle/backups/df_data_02.dbf' KEEP UNTIL TIME 'SYSDATE+180';
+
+RMAN> LIST DATAFILECOPY '/home/oracle/backups/df_data_02.dbf';
+
+
+--Adding Backup Records to the RMAN Repository
+
+--To create and catalog a user-managed copy of a data file
+SQL> ALTER TABLESPACE users BEGIN BACKUP;
+
+SQL> col name format a50
+
+SQL> select df.file#,df.name
+from v$datafile df, v$tablespace ts 
+where df.ts#=ts.ts# and ts.name='USERS';
+
+$ cp &file_name& /home/oracle/backups/users01.dbf
+
+SQL> ALTER TABLESPACE users END BACKUP;
+
+--to catalog a user-managed data file copy
+RMAN> CATALOG DATAFILECOPY '/home/oracle/backups/users01.dbf';
+
+
+--To catalog all files in a disk location
+RMAN> CATALOG START WITH '/home/oracle/backups/';
+
+--to catalog all files in the recovery area
+RMAN> CATALOG RECOVERY AREA;
+
+
+--Removing Records from the RMAN Repository
+
+--To remove the catalog record for a backup or archived redo log that deleted from the operating system with operating system commands
+RMAN> LIST CONTROLFILECOPY '/home/oracle/backups/control01.ctl';
+
+RMAN> CHANGE CONTROLFILECOPY '/home/oracle/backups/control01.ctl' UNCATALOG;
+
+RMAN> LIST DATAFILECOPY ALL;
+
+RMAN> CHANGE DATAFILECOPY '/home/oracle/backups/users01.dbf' UNCATALOG;
+
+--view the record via sqlplus
+$ sqlplus rcatown/rcatown@rcatpdb
+
+SQL> SELECT CDF_KEY, STATUS 
+  FROM RC_DATAFILE_COPY 
+  WHERE CDF_KEY = &KEY&;
+
+
+--Changing the Status of Backups for Dropped PDBs
+
+--to determine the GUID of the PDB that was dropped.
+SQL> SELECT pdb_name, pdb_guid FROM dba_pdb_history
+WHERE pdb_name = 'PDBTEST';
+
+--to modify the status of a backup corresponding to a dropped PDB.
+RMAN> CHANGE BACKUPPIECE GUID '&GUID&' UNCATALOG;
+
+RMAN> CHANGE COPY GUID '&GUID&' UNCATALOG;
+
+
+--Deleting RMAN Backups and Archived Redo Logs
+
+--Crosscheck the backups and copies to ensure that the logical records are synchronized with the physical media
+RMAN> CROSSCHECK BACKUP;
+
+RMAN> CROSSCHECK COPY;
+
+--Deleting backups using primary keys from LIST output
+RMAN> LIST BACKUP TAG 'BEFORE_PATCH';
+
+RMAN> DELETE BACKUPPIECE &BP_KEY&;
+
+--Deleting backups based on tags
+RMAN> DELETE BACKUP TAG 'BEFORE_PATCH';
+
+--Deleting backups by file name on disk
+RMAN> DELETE CONTROLFILECOPY '/home/oracle/backups/control01.ctl';
+
+RMAN> CATALOG CONTROLFILECOPY '/home/oracle/backups/control01.ctl';
+
+--Deleting archived redo logs
+RMAN> LIST ARCHIVELOG ALL;
+
+RMAN> DELETE NOPROMPT ARCHIVELOG UNTIL SEQUENCE &SEQ#&;
+
+--Delete backups based on the objects backed up and the media or disk location where the backup is stored
+RMAN> DELETE BACKUP OF TABLESPACE PDB1:TBS_DATA DEVICE TYPE DISK;
+
+RMAN> DELETE DATAFILECOPY LIKE '/home/oracle/backups/%';
+
+--Delete archived redo logs from disk based on whether they are backed up on 3 times
+RMAN> DELETE ARCHIVELOG ALL BACKED UP 3 TIMES TO DISK;
+
+--Deleting the expired backups
+RMAN> DELETE EXPIRED BACKUP;
+
+--Deleting Obsolete RMAN Backups Based on Retention Policies
+RMAN> DELETE OBSOLETE;
+
+
+--To delete backups of a dropped PDB:
+
+--to determine the GUID of the PDB that was dropped
+SQL> SELECT pdb_name, pdb_guid FROM dba_pdb_history
+WHERE pdb_name = 'PDBTEST';
+
+--to delete backups or copies associated with the dropped PDB
+RMAN> DELETE BACKUP GUID '&GUID&';
+
+RMAN> DELETE COPY GUID '&GUID&';
+
+
+--To delete all backups and copies
+RMAN> DELETE BACKUP;
+
+RMAN> DELETE COPY;

@@ -1,0 +1,70 @@
+
+--Check free space on disk
+$ df -k
+
+
+--control whether database Listener is running
+$ lsnrctl status
+
+
+--control whether database is running
+$ srvctl status database -d racdb
+
+$ sqlplus / as sysdba
+
+SQL> select name,open_mode from v$database;
+
+--pdbs
+SQL> select name,open_mode from v$pdbs;
+
+--for rac environment
+SQL> select inst_id,name,open_mode from gv$database;
+
+
+--Check the alert log for an error 
+
+--for linux
+$ cd /u01/app/oracle/diag/rdbms/racdb/racdb1/trace
+$ vim alert_racdb1.log
+--Then look for error by '/ORA-'
+
+$ grep -c 'ORA-' alert_racdb1.log
+
+--for windows
+C:\APP\ORA_C\VIRTUAL\diag\rdbms\orcl\orcl\trace\orcl_ora_15920.trc
+
+--you can see location of trace file by
+SQL> select * from v$diag_info;
+
+
+--Check free Space in the tablespace
+SQL> select tablespace_name, sum(bytes)/1024/1024 free_MB 
+from dba_free_space
+group by tablespace_name;
+
+
+--Check any session blocking the other session
+SQL> select l.session_id,o.object_name,l.oracle_username,l.os_user_name 
+from v$locked_object l, dba_objects o
+where o.object_id = l.object_id;
+
+--for rac environment
+SQL> column object_name format a15
+SQL> column oracle_username format a10
+SQL> column os_user_name format a10
+
+SQL> select l.session_id,o.object_name,l.oracle_username,l.os_user_name 
+from gv$locked_object l, dba_objects o
+where o.object_id = l.object_id;
+
+
+--Check is there any dbms jobs running & check the status of the same
+SQL> select * from dba_jobs;
+
+SQL> select * from dba_jobs_running;
+
+
+--Check whether backups are completed
+$ rman target /
+
+RMAN> LIST BACKUP SUMMARY;

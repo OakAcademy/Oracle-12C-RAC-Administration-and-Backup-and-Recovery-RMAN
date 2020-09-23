@@ -1,0 +1,58 @@
+
+ERROR:
+ORA-445 Background Process "xxxx" Did Not Start After 120 Seconds
+
+EXPLANATION1:
+ORA-00445 occurs when an Oracle background process was unable to spawn a child process in the stipulated amount of time 
+i.e., 2 mins(120 seconds) and therefore this child process startup is aborted. The process which starts the child process 
+does it in a synchronous manner and hence this parent process can't proceed with any other tasks until the child process 
+spawning is completed. Sometimes this may lead to instance wide hang as the parent process may hold up other resources 
+while spawning the child.
+
+SOLUTION1:
+Disable the use of the ASLR Feature. 
+Add/modify this parameter in /etc/sysctl.conf
+
+kernel.randomize_va_space=0
+kernel.exec-shield=0
+
+You need to reboot, for kernel.exec-shield parameter to take effect. 
+Note that both kernel parameters are required for ASLR to be switched off.
+
+EXPLANATION2:
+PRE_PAGE_SGA instructs Oracle to read the entire SGA into active memory at instance startup. Operating system page table 
+entries are then prebuilt for each page of the SGA. This setting can increase the amount of time necessary for instance 
+startup, but it is likely to decrease the amount of time necessary for Oracle to reach its full performance capacity 
+after startup. PRE_PAGE_SGA can increase the process startup duration, because every process that starts must access 
+every page in the SGA, this can cause the PMON process to take longer to start and exceed the timeout which is by default 
+120 seconds causing the instance startup to fail.
+
+SOLUTION2:
+SQL> alter system set pre_page_sga=false scope=spfile;
+
+#######################################################################################
+
+ERROR:
+ORA-12805: parallel query server died unexpectedly
+
+EXPLANATION:
+In 12c databases, ORA-12805, ORA-07445 [qertqistart] or ORA-600 [15803] errors may occur depending on bug 25694206.
+User operation cannot be completed due to the closing of parallel processes.
+
+WORKAROUND:
+SQL> alter system set "_px_wif_extend_distribution_keys"=false scope=both sid='*';
+
+#######################################################################################
+
+ERROR:
+ORA-12850: Could not allocate slaves on all specified instances: 2 needed, 0 allocated
+
+INFORMATION:
+Automatic report capturing is a new feature in oracle 12c, As part of this feature, some monitoring SQLs are executed 
+by MMON_SLAVE to identify the resource-intensive SQLs queries. And this monitoring SQLs while executing sometimes fail 
+and this type of error will be logged in the alert log.
+
+WORKAROUND:
+SQL> alter system set "_report_capture_cycle_time"=0 scope=both sid='*'   /* Default is 60
+
+

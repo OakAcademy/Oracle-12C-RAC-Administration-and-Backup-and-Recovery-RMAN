@@ -1,0 +1,38 @@
+
+--Close primary server if it runs
+
+--Virtualbox Main Window
+Machine
+
+Clone
+
+
+--Clone Virtual Machine Window
+
+Name: rmancat
+
+
+--Clone Type
+
+Full Clone
+
+Clone
+
+
+--When completed start new VM
+
+--Open terminal window
+
+--pass root user
+$ su root
+
+$ vi /etc/hostname
+
+rmancat.localdomain
+
+
+--exit to oracle
+$ vi .bash_profile
+
+export ORACLE_HOSTNAME=rmancat.localdomain
+export ORACLE_UNQNAME=RMANCAT
